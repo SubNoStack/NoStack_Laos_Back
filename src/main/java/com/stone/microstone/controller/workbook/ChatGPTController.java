@@ -51,7 +51,7 @@ public class ChatGPTController {
         this.httpSession = httpSession;
     }
 
-    @PostMapping("/processText")
+    @PostMapping("/processText") //사용자가 보낸 문제 텍스트를 처리하는 api
     public ResponseEntity<Map<String, Object>> processText(@RequestBody String problemText) {
         Integer userId = (Integer) httpSession.getAttribute("userId");
         if (userId == null) {
@@ -59,7 +59,7 @@ public class ChatGPTController {
                     .body(Map.of("error", "세션이 만료되었으니 다시 사용해주세요"));
         }
 
-        try {
+        try { //전달받은 문제 텍스트 처리하여 서비스 수행
             QuestionAnswerResponse response = chatGPTService.processText(problemText, userId);
             return new ResponseEntity<>(Map.of("message", response), HttpStatus.OK);
         } catch (IllegalArgumentException e) {
