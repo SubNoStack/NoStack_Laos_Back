@@ -2,7 +2,6 @@ package com.stone.microstone.config;
 
 import com.stone.microstone.repository.social.SocialUserRepository;
 import com.stone.microstone.repository.social.SocialUserRepositoryImpl;
-
 import com.stone.microstone.service.social.SocialUserSerivce;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
