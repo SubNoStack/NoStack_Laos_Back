@@ -47,9 +47,9 @@ public class ChatGPTServiceImpl implements ChatGPTService {
     }
 
     @Override
-    public Map<String, Object> summarizeText(String text) {
+    public Map<String, Object> summarizeText(String text) { //주어진 텍스트를 요약하는 메소드
         log.debug("[+] 문제 텍스트를 요약합니다.");
-
+        // GPT모델에 요청을 보냄
         ChatCompletionDto chatCompletionDto = ChatCompletionDto.builder()
                 .model("gpt-4o-mini")
                 .messages(List.of(ChatRequestMsgDto.builder()
@@ -58,7 +58,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
                         .build()))
                 .build();
         log.debug("요약된 정보={}", chatCompletionDto.toString());
-
+        // GPT로부터 응답을 받아서 결과를 반환
         Map<String, Object> response = executePrompt(chatCompletionDto);
         log.debug("요약 응답: {}", response.get("content"));
 
@@ -67,13 +67,14 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
     @Override
     public Map<String, Object> generateQuestion(String summarizedText) {
+        //요약된 텍스트를 기반으로 문제를 생성하는 메소드
         if (summarizedText == null || summarizedText.trim().isEmpty()) {
             log.error("요약된 텍스트가 없습니다.");
             throw new IllegalArgumentException("요약된 텍스트가 없습니다.");
         }
 
         log.debug("[+] 요약된 텍스트를 기반으로 문제를 생성합니다.");
-
+        //GPT에 문제 생성 요청
         ChatCompletionDto chatCompletionDto = ChatCompletionDto.builder()
                 .model("gpt-4o-mini")
                 .messages(List.of(ChatRequestMsgDto.builder()
@@ -88,13 +89,14 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
     @Override
     public Map<String, Object> generateAnswer(String questionText) {
+        //생성된 문제들을 기반으로 답을 생성하는 메소드
         if (questionText == null || questionText.trim().isEmpty()) {
             log.error("질문 텍스트가 없습니다.");
             throw new IllegalArgumentException("질문 텍스트가 없습니다.");
         }
 
         log.debug("[+] 질문 텍스트를 기반으로 답변을 생성합니다.");
-
+        //GPT에 답 생성 요청
         ChatCompletionDto chatCompletionDto = ChatCompletionDto.builder()
                 .model("gpt-4o-mini")
                 .messages(List.of(ChatRequestMsgDto.builder()
@@ -109,6 +111,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
     @Override
     public Map<String, Object> regenerateQuestion(String summarizedText,String contextText) {
+        // 생성된 문제들을 기반으로 새로운 문제를 생성하는 메소드
         ChatCompletionDto chatCompletionDto = ChatCompletionDto.builder()
                 .model("gpt-4o-mini")
                 .messages(List.of(ChatRequestMsgDto.builder()
@@ -122,12 +125,13 @@ public class ChatGPTServiceImpl implements ChatGPTService {
     }
 
     private Map<String, Object> executePrompt(ChatCompletionDto chatCompletionDto) {
+        //GPT 모델에 요청을 보내고 응답을 처리하는 메소드
         Map<String, Object> resultMap = new HashMap<>();
         HttpHeaders headers = chatGPTConfig.httpHeaders();
         HttpEntity<ChatCompletionDto> requestEntity = new HttpEntity<>(chatCompletionDto, headers);
 
         String promptUrl = chatGPTConfig.getApiUrl(); // 설정된 API URL 가져오기
-
+        //API요청을 보내고 응답을 처리
         ResponseEntity<String> response = chatGPTConfig
                 .restTemplate()
                 .exchange(promptUrl, HttpMethod.POST, requestEntity, String.class);
@@ -156,7 +160,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
     @Override
     public QuestionAnswerResponse processText(String problemText, Integer userId) throws IOException {
         log.debug("받은 문제 텍스트: " + problemText);
-
+        // 문제 텍스트를 처리하여 요약, 문제생성, 답변 생성 3단계를 수행
         // 1단계: 문제 텍스트 요약
         Map<String, Object> summaryResult = summarizeText(problemText);
         String summarizedText = (String) summaryResult.get("content");
@@ -184,13 +188,14 @@ public class ChatGPTServiceImpl implements ChatGPTService {
     @Transactional
     @Override
     public QuestionAnswerResponse getRetextWorkBook(int userId){
+        // 기존 문제집을 기반으로 새 문제집을 생성하는 메소드
         Optional<LocalUser> userOptional = userRepository.findById(userId);
         LocalUser user = userOptional.orElseThrow(() -> new RuntimeException("유저를 찾을 수 없음. ID: " + userId));
 
         Optional<WorkBook> newwork = workBookRepository.findLastWorkBook(user);
-        //재생성을위해 기존에 저장된 요약문을 가져옴..
+        //재생성을위해 기존에 저장된 요약문을 가져옴
         WorkBook lastWorkBook=newwork.orElseThrow(() -> new RuntimeException("기존 문제집이 존재하지 않음. User ID: " + userId));
-
+        // 저장된 요약 텍스트로 새로운 문제를 생성
         Map<String,Object> questionResult = regenerateQuestion(lastWorkBook.getWb_sumtext(), lastWorkBook.getWb_content()); //저장해둔 요약문자로 다시 생성.
         String newQuestion=(String) questionResult.get("content");
         log.debug("새 질문={}",newQuestion);

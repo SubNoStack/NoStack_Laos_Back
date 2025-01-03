@@ -45,11 +45,11 @@ public class FrontGPTController {
         this.workBookRepository = workBookRepository;
         this.httpSession = httpSession;
     }
-    @PostMapping("/processText")
+    @PostMapping("/processText") //사용자가 보낸 문제 텍스트를 처리하는 api
     public ResponseEntity<Map<String, Object>> frontprocessText(@RequestBody String problemText, @RequestParam(name = "userId", required = false) Integer userId) {
         log.debug("받은 문제 텍스트: " + problemText);
 
-        try {
+        try { //전달받은 문제 텍스트 처리하여 서비스 수행
             QuestionAnswerResponse response = chatGPTService.processText(problemText, userId);
             return new ResponseEntity<>(Map.of("message", response), HttpStatus.OK);
         } catch (IllegalArgumentException e) {
@@ -65,10 +65,10 @@ public class FrontGPTController {
     }
 
 
-    @PostMapping("/retext")
+    @PostMapping("/retext") //생성된 문제를 재생성을 수행하는 api
     public ResponseEntity<Object> frontretext(@RequestParam Integer userId){
 
-        try{
+        try{ //서비스 수행
             QuestionAnswerResponse response=chatGPTService.getRetextWorkBook(userId);
             // 결과 반환
             return new ResponseEntity<>(Map.of("message",response), HttpStatus.OK);
@@ -80,10 +80,10 @@ public class FrontGPTController {
         }
     }
 
-    @PatchMapping("/favorite")
+    @PatchMapping("/favorite") //문제집 즐겨찾기를 수행하는 api
     public ResponseEntity<Object> frontfavorite(@RequestParam Integer wb_id,@RequestParam Integer userId){
 
-        try{
+        try{ //서비스 수행
             WorkBook workBook=workBookService.findFavorite(wb_id,userId);
             return new ResponseEntity<>(Map.of("message","즐겨찾기가 완료되었습니다",
                     "wb_id", workBook.getWb_user_id(),"favorite",workBook.isWb_favorite()), HttpStatus.OK);
@@ -93,10 +93,10 @@ public class FrontGPTController {
         }
     }
 
-    @PatchMapping("/answer/favorite")
+    @PatchMapping("/answer/favorite") //답지 즐겨찾기를 수행하는 api
     public ResponseEntity<Object> frontfavoriteanswer(@RequestParam Integer wb_id,@RequestParam Integer userId){
 
-        try{
+        try{ //서비스 수행
             WorkBook workBook=workBookService.findAnswerFavorite(wb_id,userId);
             return new ResponseEntity<>(Map.of("message","즐겨찾기가 완료되었습니다",
                     "wb_id", workBook.getWb_user_id(),"favorite",workBook.isWb_favorite_answer()), HttpStatus.OK);
@@ -106,10 +106,10 @@ public class FrontGPTController {
         }
     }
 
-    @GetMapping("/all")
+    @GetMapping("/all") //문제집 전체조회 수행 api
     public ResponseEntity frontbookall(@RequestParam Integer userId){
 
-        try{
+        try{ //서비스 수행.전체 조회 list
             List<WorkBookResponse> allbook=workBookService.getAllWorkBook(userId);
             if(allbook.isEmpty()){
                 return ResponseEntity.ok(Map.of("data", Collections.emptyList()));
@@ -122,7 +122,7 @@ public class FrontGPTController {
 
     }
 
-    @GetMapping("/favorite/all")
+    @GetMapping("/favorite/all") //즐겨찾기 문제집 전제조회 api
     public ResponseEntity frontfavoriteall(@RequestParam Integer userId){
 
         try{
@@ -138,7 +138,7 @@ public class FrontGPTController {
     }
 
 
-    @GetMapping("/answer/all")
+    @GetMapping("/answer/all") //답지 전체 조회 api
     public ResponseEntity frontanswer(@RequestParam Integer userId){
 
         try{
@@ -153,7 +153,7 @@ public class FrontGPTController {
         }
     }
 
-    @GetMapping("/favorite/answer/all")
+    @GetMapping("/favorite/answer/all") //즐겨찾기한 답지 전체 조회
     public ResponseEntity frontanswerfavorite(@RequestParam Integer userId){
 
         try{
@@ -170,7 +170,7 @@ public class FrontGPTController {
 
 
 
-    @PatchMapping("/title")
+    @PatchMapping("/title") //문제집 제목 변경 api
     public ResponseEntity frontsettingtitle(@RequestParam Integer wb_id,@RequestParam String title,@RequestParam Integer userId){
 
         try{
@@ -183,7 +183,7 @@ public class FrontGPTController {
         }
     }
 
-    @PatchMapping("/answer/title")
+    @PatchMapping("/answer/title") //답지 제목 변경 api
     public ResponseEntity frontsettinganswertitle(@RequestParam Integer wb_id,@RequestParam String title,@RequestParam Integer userId){
 
         try{
@@ -197,7 +197,7 @@ public class FrontGPTController {
     }
 
 
-    @PostMapping("/upload")
+    @PostMapping("/upload")  //생성된 문제집의 pdf를 저장하는 api
     public ResponseEntity frontuploadWorkbook(@RequestParam Integer wb_id, @RequestParam("file")MultipartFile file,@RequestParam Integer userId){
 
         try{
@@ -210,7 +210,7 @@ public class FrontGPTController {
 
     }
 
-    @PostMapping("/answer/upload")
+    @PostMapping("/answer/upload") //생성된 답지의 pdf 저장 api
     public ResponseEntity frontuploadanswer(@RequestParam Integer wb_id, @RequestParam("file")MultipartFile file,@RequestParam Integer userId){
 
         try{
@@ -226,7 +226,7 @@ public class FrontGPTController {
 
 
 
-    @DeleteMapping("/delete")
+    @DeleteMapping("/delete") //문제집 삭제.답지도 함께 삭제됨.
     public ResponseEntity frontworkbookdelete(@RequestParam Integer wb_id,@RequestParam Integer userId){
 
         try{
@@ -238,7 +238,7 @@ public class FrontGPTController {
         }
     }
 
-    @GetMapping("/download/{wb_id}")
+    @GetMapping("/download/{wb_id}") //클라이언트에게 저장한 문제집 pdf파일을 전송하는 api
     public ResponseEntity frontdownloadFile(@PathVariable Integer wb_id,@RequestParam Integer userId) {
 
         try{
@@ -257,7 +257,7 @@ public class FrontGPTController {
         }
     }
 
-    @GetMapping("/answer/download/{wb_id}")
+    @GetMapping("/answer/download/{wb_id}") //클라이언트에게 저장한 답지 pdf파일을 전송하는 api
     public ResponseEntity frontdownloadFilean(@PathVariable Integer wb_id,@RequestParam Integer userId) {
         try{
             Resource resource = workBookService.getResourceanswer(wb_id,userId);
