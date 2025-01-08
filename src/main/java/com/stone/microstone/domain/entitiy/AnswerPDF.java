@@ -8,16 +8,12 @@ import lombok.Setter;
 @Entity
 @Getter
 @Setter
+@Table(name = "answerpdf")
 public class AnswerPDF {
     //답지 id.기본키
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int answer_pdf_id;
-
-    //답지 pdf를 저장하는 열
-    @Lob
-    @Column(columnDefinition = "LONGBLOB")
-    private byte[] pdf_data;
 
     //답지 이름 저장
     private String fileName;
@@ -28,6 +24,6 @@ public class AnswerPDF {
 
     //workbook과 일대일 관계를 이룬다.
     @OneToOne
-    @JoinColumn(name="wb_id", unique = true)
+    @JoinColumn(name = "wb_id",unique=true)
     private WorkBook workBook;
 }

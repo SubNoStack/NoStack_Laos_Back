@@ -9,7 +9,6 @@ import com.stone.microstone.service.ChatGPTService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.stone.microstone.domain.entitiy.LocalUser;
 import com.stone.microstone.repository.social.LocalUserRepository;
 import com.stone.microstone.repository.workbook.WorkBookRepository;
 import com.stone.microstone.service.workbook.WorkBookService;

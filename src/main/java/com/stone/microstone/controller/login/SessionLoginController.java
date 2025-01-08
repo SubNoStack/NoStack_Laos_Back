@@ -2,8 +2,6 @@ package com.stone.microstone.controller.login;
 
 import com.stone.microstone.dto.local.JoinRequest;
 import com.stone.microstone.dto.local.LoginRequest;
-import com.stone.microstone.domain.entitiy.LocalUser;
-import com.stone.microstone.service.social.LocalUserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

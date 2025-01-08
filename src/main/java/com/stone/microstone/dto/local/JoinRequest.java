@@ -1,6 +1,5 @@
 package com.stone.microstone.dto.local;
 
-import com.stone.microstone.domain.entitiy.LocalUser;
 import lombok.Getter;
 import lombok.Setter;
 

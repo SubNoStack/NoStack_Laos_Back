@@ -1,7 +1,6 @@
 package com.stone.microstone.repository.workbook;
 
 import com.stone.microstone.domain.entitiy.WorkBook;
-import com.stone.microstone.domain.entitiy.LocalUser;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Repository;

@@ -1,7 +1,6 @@
 package com.stone.microstone.repository.workbook;
 
 import com.stone.microstone.domain.entitiy.WorkBook;
-import com.stone.microstone.domain.entitiy.LocalUser;
 
 import java.util.List;
 import java.util.Optional;

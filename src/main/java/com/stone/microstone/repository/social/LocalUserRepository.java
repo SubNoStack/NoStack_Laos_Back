@@ -1,6 +1,5 @@
 package com.stone.microstone.repository.social;
 
-import com.stone.microstone.domain.entitiy.LocalUser;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

@@ -5,7 +5,6 @@ import com.stone.microstone.domain.entitiy.AnswerPDF;
 import com.stone.microstone.domain.entitiy.WorkBookPDF;
 import com.stone.microstone.dto.workbook.*;
 import com.stone.microstone.dto.chatgpt.QuestionAnswerResponse;
-import com.stone.microstone.domain.entitiy.LocalUser;
 import com.stone.microstone.repository.social.LocalUserRepository;
 import com.stone.microstone.repository.workbook.WorkBookRepository;
 import com.stone.microstone.service.workbook.pdf.PdfService;
