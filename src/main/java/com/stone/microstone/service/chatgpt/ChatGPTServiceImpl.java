@@ -206,7 +206,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         //저장 작업 수행.
         WorkBook saveWorkBook = workBookService.findLastWorkBook(newQuestion,answerText, userId);
 
-        return new QuestionAnswerResponse(saveWorkBook.getWb_user_id(),saveWorkBook.getWb_title(),newQuestion,answerText);
+        return new QuestionAnswerResponse(saveWorkBook.getWb_id(),saveWorkBook.getWb_title(),newQuestion,answerText);
 
 
     }

@@ -14,9 +14,6 @@ public interface WorkBookRepository {
 
     Optional<WorkBook> findLastWorkBook();
 
-    List<WorkBook> findByUser();
-
-    List<WorkBook> findByUserfavoirte();
 
     void deleteAll();
 

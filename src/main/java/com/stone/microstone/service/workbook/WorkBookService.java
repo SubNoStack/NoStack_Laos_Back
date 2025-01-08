@@ -176,12 +176,12 @@ public class WorkBookService {
     }
 
     //유저가 생성한 문제집 정보를 전부 찾아 반환을 수행하는 메솓,
-    @Transactional
-    public List<WorkBook> findWorkBookall(int user_id){ //전체 문제찾기
-        //문제집 찾기.
-        List<WorkBook> newwork = workBookRepository.findByUser();
-        return newwork;
-    }
+//    @Transactional
+//    public List<WorkBook> findWorkBookall(int user_id){ //전체 문제찾기
+//        //문제집 찾기.
+//        List<WorkBook> newwork = workBookRepository.findByUser();
+//        return newwork;
+//    }
 
     //문제집 pdf경로가 존재하는것만 문제집정보를 반환
     @Transactional
