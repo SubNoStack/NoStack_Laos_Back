@@ -188,10 +188,8 @@ public class ChatGPTServiceImpl implements ChatGPTService {
     @Override
     public QuestionAnswerResponse getRetextWorkBook(int userId){
         // 기존 문제집을 기반으로 새 문제집을 생성하는 메소드
-        Optional<LocalUser> userOptional = userRepository.findById(userId);
-        LocalUser user = userOptional.orElseThrow(() -> new RuntimeException("유저를 찾을 수 없음. ID: " + userId));
 
-        Optional<WorkBook> newwork = workBookRepository.findLastWorkBook(user);
+        Optional<WorkBook> newwork = workBookRepository.findLastWorkBook();
         //재생성을위해 기존에 저장된 요약문을 가져옴
         WorkBook lastWorkBook=newwork.orElseThrow(() -> new RuntimeException("기존 문제집이 존재하지 않음. User ID: " + userId));
         // 저장된 요약 텍스트로 새로운 문제를 생성

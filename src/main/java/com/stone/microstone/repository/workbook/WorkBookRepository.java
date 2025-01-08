@@ -9,20 +9,20 @@ public interface WorkBookRepository {
 
     WorkBook save(WorkBook workBook);
 
-    Optional<WorkBook> findByuserIdandUser(int id, LocalUser user);
-    void deleteById(int id, LocalUser user);
+    Optional<WorkBook> findByuserId(int id);
+    void deleteById(int id);
 
-    Optional<WorkBook> findLastWorkBook(LocalUser user);
+    Optional<WorkBook> findLastWorkBook();
 
-    List<WorkBook> findByUser(LocalUser user);
+    List<WorkBook> findByUser();
 
-    List<WorkBook> findByUserfavoirte(LocalUser user);
+    List<WorkBook> findByUserfavoirte();
 
     void deleteAll();
 
-    Optional<Integer> findMaxUserid(LocalUser user);
+    Optional<Integer> findMaxUserid();
 
-    List<WorkBook> findByUserAndpdf(LocalUser user);
+    List<WorkBook> findByUserAndpdf();
 
-    List<WorkBook> findByUserAndAnsPdf(LocalUser user);
+    List<WorkBook> findByUserAndAnsPdf();
 }
