@@ -5,7 +5,6 @@ import com.stone.microstone.domain.entitiy.AnswerPDF;
 import com.stone.microstone.domain.entitiy.WorkBookPDF;
 import com.stone.microstone.dto.workbook.*;
 import com.stone.microstone.dto.chatgpt.QuestionAnswerResponse;
-import com.stone.microstone.repository.social.LocalUserRepository;
 import com.stone.microstone.repository.workbook.WorkBookRepository;
 import com.stone.microstone.service.workbook.pdf.PdfService;
 import lombok.extern.slf4j.Slf4j;
@@ -32,15 +31,12 @@ import java.util.stream.Collectors;
 @Service
 public class WorkBookService {
     private final WorkBookRepository workBookRepository;
-    private final LocalUserRepository userRepository;
     private final PdfService pdfService;
 
 
     public WorkBookService(WorkBookRepository workBookRepository,
-                           LocalUserRepository userRepository,
                            PdfService pdfService) {
         this.workBookRepository = workBookRepository;
-        this.userRepository=userRepository;
         this.pdfService=pdfService;
 
 

@@ -9,7 +9,6 @@ import com.stone.microstone.service.ChatGPTService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.stone.microstone.repository.social.LocalUserRepository;
 import com.stone.microstone.repository.workbook.WorkBookRepository;
 import com.stone.microstone.service.workbook.WorkBookService;
 import lombok.extern.slf4j.Slf4j;
@@ -32,16 +31,14 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
     private final ChatGPTConfig chatGPTConfig;
     private final WorkBookService workBookService;
-    private final LocalUserRepository userRepository;
+
     private final WorkBookRepository workBookRepository;
 
     public ChatGPTServiceImpl(ChatGPTConfig chatGPTConfig,
                               WorkBookService workBookService,
-                              LocalUserRepository userRepository,
                               WorkBookRepository workBookRepository) {
         this.chatGPTConfig = chatGPTConfig;
         this.workBookService = workBookService;
-        this.userRepository = userRepository;
         this.workBookRepository = workBookRepository;
     }
 

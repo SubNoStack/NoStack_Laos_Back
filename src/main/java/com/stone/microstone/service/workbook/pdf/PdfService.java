@@ -3,7 +3,6 @@ package com.stone.microstone.service.workbook.pdf;
 import com.stone.microstone.domain.entitiy.WorkBook;
 import com.stone.microstone.domain.entitiy.AnswerPDF;
 import com.stone.microstone.domain.entitiy.WorkBookPDF;
-import com.stone.microstone.repository.social.LocalUserRepository;
 import com.stone.microstone.repository.workbook.pdf.AnswerPdfRepository;
 import com.stone.microstone.repository.workbook.pdf.WorkBookPdfRepository;
 import com.stone.microstone.repository.workbook.WorkBookRepository;
@@ -29,15 +28,13 @@ public class PdfService {
     private WorkBookPdfRepository workbookPdfRepository;
     private AnswerPdfRepository answerPdfRepository;
     private WorkBookRepository workbookRepository;
-    private LocalUserRepository userRepository;
     private static final String UPLOAD_DIR="uploads";
 
     @Autowired
-    public PdfService(WorkBookPdfRepository workbookPdfRepository, AnswerPdfRepository answerPdfRepository, WorkBookRepository workbookRepository, LocalUserRepository userRepository) {
+    public PdfService(WorkBookPdfRepository workbookPdfRepository, AnswerPdfRepository answerPdfRepository, WorkBookRepository workbookRepository) {
         this.workbookPdfRepository = workbookPdfRepository;
         this.answerPdfRepository = answerPdfRepository;
         this.workbookRepository = workbookRepository;
-        this.userRepository = userRepository;
     }
 
     //pdf 테이블에 데이터를 저장.

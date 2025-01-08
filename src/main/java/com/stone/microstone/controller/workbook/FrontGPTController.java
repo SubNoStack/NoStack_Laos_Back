@@ -80,31 +80,6 @@ public class FrontGPTController {
         }
     }
 
-    @PatchMapping("/favorite") //문제집 즐겨찾기를 수행하는 api
-    public ResponseEntity<Object> frontfavorite(@RequestParam Integer wb_id,@RequestParam Integer userId){
-
-        try{ //서비스 수행
-            WorkBook workBook=workBookService.findFavorite(wb_id,userId);
-            return new ResponseEntity<>(Map.of("message","즐겨찾기가 완료되었습니다",
-                    "wb_id", workBook.getWb_user_id(),"favorite",workBook.isWb_favorite()), HttpStatus.OK);
-        }catch(Exception e){
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("error", e.getMessage()));
-        }
-    }
-
-    @PatchMapping("/answer/favorite") //답지 즐겨찾기를 수행하는 api
-    public ResponseEntity<Object> frontfavoriteanswer(@RequestParam Integer wb_id,@RequestParam Integer userId){
-
-        try{ //서비스 수행
-            WorkBook workBook=workBookService.findAnswerFavorite(wb_id,userId);
-            return new ResponseEntity<>(Map.of("message","즐겨찾기가 완료되었습니다",
-                    "wb_id", workBook.getWb_user_id(),"favorite",workBook.isWb_favorite_answer()), HttpStatus.OK);
-        }catch(Exception e){
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("error", e.getMessage()));
-        }
-    }
 
     @GetMapping("/all") //문제집 전체조회 수행 api
     public ResponseEntity frontbookall(@RequestParam Integer userId){
@@ -122,20 +97,6 @@ public class FrontGPTController {
 
     }
 
-    @GetMapping("/favorite/all") //즐겨찾기 문제집 전제조회 api
-    public ResponseEntity frontfavoriteall(@RequestParam Integer userId){
-
-        try{
-            List<WorkBookResponse> allbook=workBookService.getAllFavoriteWorkBook(userId);
-            if(allbook.isEmpty()){
-                return ResponseEntity.ok(Map.of("data", Collections.emptyList()));
-            }
-            return ResponseEntity.ok(Map.of("data",allbook));
-        }catch(Exception e){
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", e.getMessage()));
-        }
-    }
 
 
     @GetMapping("/answer/all") //답지 전체 조회 api
@@ -153,21 +114,6 @@ public class FrontGPTController {
         }
     }
 
-    @GetMapping("/favorite/answer/all") //즐겨찾기한 답지 전체 조회
-    public ResponseEntity frontanswerfavorite(@RequestParam Integer userId){
-
-        try{
-            List<WorkBookAnswerResponse> allbook=workBookService.getAllFavoriteAnswerWorkBook(userId);
-            if(allbook.isEmpty()){
-                return ResponseEntity.ok(Map.of("data", Collections.emptyList()));
-            }
-            return ResponseEntity.ok(Map.of("data",allbook));
-        }catch(Exception e){
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", e.getMessage()));
-        }
-    }
-
 
 
     @PatchMapping("/title") //문제집 제목 변경 api
@@ -176,7 +122,7 @@ public class FrontGPTController {
         try{
             WorkBook workBook=workBookService.findSearchAndtitle(wb_id,userId,title);
             return ResponseEntity.ok(Map.of("message","제목변경 완료",
-                    "wb_id",workBook.getWb_user_id(),"wb_title",workBook.getWb_title()));
+                    "wb_id",workBook.getWb_id(),"wb_title",workBook.getWb_title()));
         }catch(Exception e){
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", e.getMessage()));
@@ -189,7 +135,7 @@ public class FrontGPTController {
         try{
             WorkBook workBook=workBookService.findSearchAndanswertitle(wb_id,userId,title);
             return ResponseEntity.ok(Map.of("message","제목변경 완료",
-                    "wb_id",workBook.getWb_user_id(),"wb_title",workBook.getWb_title_answer()));
+                    "wb_id",workBook.getWb_id(),"wb_title",workBook.getWb_title_answer()));
         }catch(Exception e){
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", e.getMessage()));

@@ -96,43 +96,7 @@ public class ChatGPTController {
         }
     }
 
-    @PatchMapping("/favorite") //문제집 즐겨찾기를 수행하는 api
-    public ResponseEntity<Object> favorite(@RequestParam Integer wb_id){
-   //     Integer userId = 6;
-        Integer userId=(Integer)httpSession.getAttribute("userId");
-        if(userId==null){
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error","세션이 만료되었으니 다시 사용해주세요"));
-        }
-        try{
-            //서비스 수행
-            WorkBook workBook=workBookService.findFavorite(wb_id,userId);
-            return new ResponseEntity<>(Map.of("message","즐겨찾기가 완료되었습니다",
-                    "wb_id",workBook.getWb_id(),"favorite",workBook.isWb_favorite()), HttpStatus.OK);
-        }catch(Exception e){
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("error", e.getMessage()));
-        }
-    }
 
-    @PatchMapping("/answer/favorite")  //답지 즐겨찾기를 수행하는 api
-    public ResponseEntity<Object> favoriteanswer(@RequestParam Integer wb_id){  //db에 저장된 문제 id를 사용해 검색.
-        //     Integer userId = 6;
-        Integer userId=(Integer)httpSession.getAttribute("userId");
-        if(userId==null){
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error","세션이 만료되었으니 다시 사용해주세요"));
-        }
-        try{
-            //서비스 수행
-            WorkBook workBook=workBookService.findAnswerFavorite(wb_id,userId);
-            return new ResponseEntity<>(Map.of("message","즐겨찾기가 완료되었습니다",
-                    "wb_id",workBook.getWb_id(),"favorite",workBook.isWb_favorite()), HttpStatus.OK);
-        }catch(Exception e){
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("error", e.getMessage()));
-        }
-    }
 
     @GetMapping("/all")  //문제집 전체조회 수행 api
     public ResponseEntity bookall(){
@@ -156,26 +120,7 @@ public class ChatGPTController {
 
     }
 
-    @GetMapping("/favorite/all")  //즐겨찾기 문제집 전제조회 api
-    public ResponseEntity favoriteall(){
-//        Integer userId = 5;
-        Integer userId=(Integer)httpSession.getAttribute("userId");
-        if(userId==null){
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error","세션이 만료되었으니 다시 사용해주세요"));
-        }
-        try{
-            //서비스 수행
-            List<WorkBookResponse> allbook=workBookService.getAllFavoriteWorkBook(userId);
-            if(allbook.isEmpty()){
-                return ResponseEntity.ok(Map.of("data", Collections.emptyList()));
-            }
-            return ResponseEntity.ok(Map.of("data",allbook));
-        }catch(Exception e){
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", e.getMessage()));
-        }
-    }
+
 
 
 
@@ -199,25 +144,7 @@ public class ChatGPTController {
         }
     }
 
-    @GetMapping("/favorite/answer/all")//즐겨찾기한 답지 전체 조회
-    public ResponseEntity answerfavorite(){
-//        Integer userId = 6;
-        Integer userId=(Integer)httpSession.getAttribute("userId");
-        if(userId==null){
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error","세션이 만료되었으니 다시 사용해주세요"));
-        }
-        try{
-            List<WorkBookAnswerResponse> allbook=workBookService.getAllFavoriteAnswerWorkBook(userId);
-            if(allbook.isEmpty()){
-                return ResponseEntity.ok(Map.of("data", Collections.emptyList()));
-            }
-            return ResponseEntity.ok(Map.of("data",allbook));
-        }catch(Exception e){
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", e.getMessage()));
-        }
-    }
+
 
     @PatchMapping("/title") //문제집 제목 변경 api
     public ResponseEntity settingtitle(@RequestParam Integer wb_id,@RequestParam String title){  //생성된 문제 id와 변경할 제목 작성.
@@ -229,7 +156,7 @@ public class ChatGPTController {
         try{
             WorkBook workBook=workBookService.findSearchAndtitle(wb_id,userId,title);
             return ResponseEntity.ok(Map.of("message","제목변경 완료",
-                    "wb_id",workBook.getWb_user_id(),"wb_title",workBook.getWb_title()));
+                    "wb_id",workBook.getWb_id(),"wb_title",workBook.getWb_title()));
         }catch(Exception e){
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", e.getMessage()));
@@ -246,7 +173,7 @@ public class ChatGPTController {
         try{
             WorkBook workBook=workBookService.findSearchAndanswertitle(wb_id,userId,title);
             return ResponseEntity.ok(Map.of("message","제목변경 완료",
-                    "wb_id",workBook.getWb_user_id(),"wb_title",workBook.getWb_title_answer()));
+                    "wb_id",workBook.getWb_id(),"wb_title",workBook.getWb_title_answer()));
         }catch(Exception e){
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", e.getMessage()));
