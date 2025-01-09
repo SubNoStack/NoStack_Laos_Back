@@ -3,8 +3,6 @@ package com.stone.microstone.service.workbook.pdf;
 import com.stone.microstone.domain.entitiy.WorkBook;
 import com.stone.microstone.domain.entitiy.AnswerPDF;
 import com.stone.microstone.domain.entitiy.WorkBookPDF;
-import com.stone.microstone.domain.entitiy.LocalUser;
-import com.stone.microstone.repository.social.LocalUserRepository;
 import com.stone.microstone.repository.workbook.pdf.AnswerPdfRepository;
 import com.stone.microstone.repository.workbook.pdf.WorkBookPdfRepository;
 import com.stone.microstone.repository.workbook.WorkBookRepository;
@@ -30,24 +28,21 @@ public class PdfService {
     private WorkBookPdfRepository workbookPdfRepository;
     private AnswerPdfRepository answerPdfRepository;
     private WorkBookRepository workbookRepository;
-    private LocalUserRepository userRepository;
     private static final String UPLOAD_DIR="uploads";
 
     @Autowired
-    public PdfService(WorkBookPdfRepository workbookPdfRepository, AnswerPdfRepository answerPdfRepository, WorkBookRepository workbookRepository, LocalUserRepository userRepository) {
+    public PdfService(WorkBookPdfRepository workbookPdfRepository, AnswerPdfRepository answerPdfRepository, WorkBookRepository workbookRepository) {
         this.workbookPdfRepository = workbookPdfRepository;
         this.answerPdfRepository = answerPdfRepository;
         this.workbookRepository = workbookRepository;
-        this.userRepository = userRepository;
     }
 
     //pdf 테이블에 데이터를 저장.
     @Transactional
     public WorkBookPDF save(int wb_id, int user_id) throws IOException {
-        Optional<LocalUser> userOptional = userRepository.findById(user_id);
-        LocalUser user = userOptional.orElseThrow(() -> new RuntimeException("유저를 찾을 수 없음. ID: " + user_id));
+
         //문제집을 문제id와 유저 정보로 찾는것.
-        WorkBook workBook = workbookRepository.findByuserIdandUser(wb_id,user).orElseThrow(() -> new RuntimeException("문제집이 존재하지 않음"));
+        WorkBook workBook = workbookRepository.findByuserId(wb_id).orElseThrow(() -> new RuntimeException("문제집이 존재하지 않음"));
         //pdf테이블 생성.
         WorkBookPDF pdf=new WorkBookPDF();
         pdf.setWorkBook(workBook);
@@ -57,14 +52,12 @@ public class PdfService {
     //pdf 테이블에 데이터를 저장후 반환..
     @Transactional
     public WorkBookPDF savedata2(MultipartFile file, int wb_id,int user_id) throws IOException {
-        Optional<LocalUser> userOptional = userRepository.findById(user_id);
-        LocalUser user = userOptional.orElseThrow(() -> new RuntimeException("유저를 찾을 수 없음. ID: " + user_id));
 
-        WorkBook workBook = workbookRepository.findByuserIdandUser(wb_id,user).orElseThrow(() -> new RuntimeException("문제집이 존재하지 않음"));
+        WorkBook workBook = workbookRepository.findByuserId(wb_id).orElseThrow(() -> new RuntimeException("문제집이 존재하지 않음"));
         WorkBookPDF pdf=workbookPdfRepository.findByWorkBook(workBook);
         //파일 경로 생성한뒤 반환.
         String filePath=savePath(file, file.getOriginalFilename());
-        pdf.setFileName(file.getOriginalFilename());
+        pdf.setFile_name(file.getOriginalFilename());
         pdf.setPdf_path(filePath);
         return workbookPdfRepository.save(pdf);
     }
@@ -78,10 +71,8 @@ public class PdfService {
     //비어있는 답지pdf 테이블을 생성해 db에 저장을 수행.
     @Transactional
     public AnswerPDF answersave(int wb_id, int user_id) throws IOException {
-        Optional<LocalUser> userOptional = userRepository.findById(user_id);
-        LocalUser user = userOptional.orElseThrow(() -> new RuntimeException("유저를 찾을 수 없음. ID: " + user_id));
 
-        WorkBook workBook = workbookRepository.findByuserIdandUser(wb_id,user).orElseThrow(() -> new RuntimeException("문제집이 존재하지 않음"));
+        WorkBook workBook = workbookRepository.findByuserId(wb_id).orElseThrow(() -> new RuntimeException("문제집이 존재하지 않음"));
 
         AnswerPDF answerPDF=new AnswerPDF();
 
@@ -93,10 +84,8 @@ public class PdfService {
     //실제 데이터를 pc에 저장한뒤 경로정보를 저장.
     @Transactional
     public AnswerPDF answersavedata2(MultipartFile file, int wb_id,int user_id) throws IOException {
-        Optional<LocalUser> userOptional = userRepository.findById(user_id);
-        LocalUser user = userOptional.orElseThrow(() -> new RuntimeException("유저를 찾을 수 없음. ID: " + user_id));
 
-        WorkBook workBook = workbookRepository.findByuserIdandUser(wb_id,user).orElseThrow(() -> new RuntimeException("문제집이 존재하지 않음"));
+        WorkBook workBook = workbookRepository.findByuserId(wb_id).orElseThrow(() -> new RuntimeException("문제집이 존재하지 않음"));
 
         //이미 생성된 pdf를 생성한뒤.
         AnswerPDF answerPDF=answerPdfRepository.findByWorkBook(workBook);
@@ -125,7 +114,7 @@ public class PdfService {
                     return Map.of(
                             "wb_id", workBook.getWb_id(),
                             "workbook_pdf", Map.of(
-                                    "filename", Optional.ofNullable(workbookPdfs).map(WorkBookPDF::getFileName).orElse(""),
+                                    "filename", Optional.ofNullable(workbookPdfs).map(WorkBookPDF::getFile_name).orElse(""),
                                     "pdf_path", Optional.ofNullable(workbookPdfs).map(WorkBookPDF::getPdf_path).orElse("")
                                     //"pdf_data", workbookPdfs != null ? workbookPdfs.getPdf_data() : null
                             )
