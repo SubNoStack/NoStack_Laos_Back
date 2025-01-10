@@ -20,6 +20,9 @@ public class Question {
     @Column
     private int pr_wb_id;
 
+    @Column
+    private String pr_image_name;
+
     @ManyToOne
     @JoinColumn(name = "wb_id",unique = true)
     private WorkBook workBook;
