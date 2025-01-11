@@ -4,6 +4,7 @@ import com.stone.microstone.domain.entitiy.WorkBook;
 import com.stone.microstone.config.ChatGPTConfig;
 import com.stone.microstone.dto.chatgpt.ChatCompletionDto;
 import com.stone.microstone.dto.chatgpt.ChatRequestMsgDto;
+import com.stone.microstone.dto.chatgpt.DalleRequestDto;
 import com.stone.microstone.dto.chatgpt.QuestionAnswerResponse;
 import com.stone.microstone.service.ChatGPTService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -122,15 +123,12 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         log.debug("[+] 이미지 생성 요청: {}", description);
 
         // OpenAI API 요청 생성
-        ChatCompletionDto dalleCompletion = ChatCompletionDto.builder()
-                .model("dall-e-2")
-                .messages(List.of(ChatRequestMsgDto.builder()
-                        .role("user")
-                        .content(description)
-                        .build()))
+        DalleRequestDto dalleRequest = DalleRequestDto.builder()
+                .model("dall-e-3")
+                .prompt(description)
                 .build();
 
-        Map<String, Object> imageResponse = executePrompt(dalleCompletion);
+        Map<String, Object> imageResponse = executePrompt(dalleRequest);
 
         // 이미지 URL 추출
         String imageUrl = (String) imageResponse.get("content");
@@ -138,8 +136,6 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
         return imageUrl;
     }
-
-
 
     @Override
     public Map<String, Object> generateAnswer(String questionText) {
@@ -178,16 +174,22 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         return executePrompt(chatCompletionDto);
     }
 
-    private Map<String, Object> executePrompt(ChatCompletionDto chatCompletionDto) {
+    private Map<String, Object> executePrompt(Object requestDto) {
         Map<String, Object> resultMap = new HashMap<>();
         HttpHeaders headers = chatGPTConfig.httpHeaders();
-        HttpEntity<ChatCompletionDto> requestEntity = new HttpEntity<>(chatCompletionDto, headers);
+        HttpEntity<?> requestEntity = new HttpEntity<>(requestDto, headers);
 
         String promptUrl;
-        if (chatCompletionDto.getModel().startsWith("dall")) {
+        String model;
+
+        if (requestDto instanceof DalleRequestDto) {
             promptUrl = chatGPTConfig.getDalleApiUrl();
-        } else {
+            model = ((DalleRequestDto) requestDto).getModel();
+        } else if (requestDto instanceof ChatCompletionDto) {
             promptUrl = chatGPTConfig.getApiUrl();
+            model = ((ChatCompletionDto) requestDto).getModel();
+        } else {
+            throw new IllegalArgumentException("Unsupported request type");
         }
 
         ResponseEntity<String> response = chatGPTConfig
@@ -198,10 +200,13 @@ public class ChatGPTServiceImpl implements ChatGPTService {
             Map<String, Object> responseMap = om.readValue(response.getBody(), new TypeReference<>() {});
             log.debug("API 응답: {}", responseMap);
 
-            if (chatCompletionDto.getModel().startsWith("dall")) {
+            if (model.startsWith("dall")) {
                 // DALL-E 응답 처리
-                String imageUrl = (String) ((Map<String, Object>) responseMap.get("data")).get("url");
-                resultMap.put("content", imageUrl);
+                List<Map<String, Object>> data = (List<Map<String, Object>>) responseMap.get("data");
+                if (data != null && !data.isEmpty()) {
+                    String imageUrl = (String) data.get(0).get("url");
+                    resultMap.put("content", imageUrl);
+                }
             } else {
                 // GPT 응답 처리
                 List<Map<String, Object>> choices = (List<Map<String, Object>>) responseMap.get("choices");
@@ -275,9 +280,4 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
         return new QuestionAnswerResponse(saveWorkBook.getWb_id(), saveWorkBook.getWb_title(), newQuestion, answerText, imageQuestions, textQuestions);
     }
-
-
 }
-
-
-
