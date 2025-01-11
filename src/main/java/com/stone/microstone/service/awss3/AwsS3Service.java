@@ -10,10 +10,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.util.UUID;
 
@@ -25,6 +27,24 @@ public class AwsS3Service {
     private String bucket;
 
     private final AmazonS3 s3Client;
+
+    //file로 보내기
+//    public String uploadfilemult(String s3name, MultipartFile file) {
+//        ObjectMetadata objectMetadata = new ObjectMetadata();
+//        objectMetadata.setContentType(file.getContentType());
+//        objectMetadata.setContentLength(file.getSize());
+//
+//        try (InputStream inputStream = file.getInputStream()) {
+//            s3Client.putObject(new PutObjectRequest(bucket, s3name, inputStream, objectMetadata)
+//                    .withCannedAcl(CannedAccessControlList.PublicRead));
+//        } catch (IOException e) {
+//            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "s3에 저장을 실패" + e);
+//        }
+//        //해당 url
+//        URL url = s3Client.getUrl(bucket, s3name);
+//        log.info("주소는" + url.toString());
+//        return s3name;
+//    }
 
     //s3에 실제 업로드 하는 서비스
     //byte[] 가 아닌 file을 보내서 처리해도 가능.
