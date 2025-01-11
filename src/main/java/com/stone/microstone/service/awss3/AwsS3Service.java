@@ -5,6 +5,7 @@ import com.amazonaws.services.s3.model.CannedAccessControlList;
 import com.amazonaws.services.s3.model.DeleteObjectRequest;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
+import com.stone.microstone.domain.entitiy.Question;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import javax.management.Query;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -29,7 +31,7 @@ public class AwsS3Service {
     private final AmazonS3 s3Client;
 
     //file로 보내기
-//    public String uploadfilemult(String s3name, MultipartFile file) {
+//    public String uploadfilemult(String s3name, MultipartFile file,Question question) {
 //        ObjectMetadata objectMetadata = new ObjectMetadata();
 //        objectMetadata.setContentType(file.getContentType());
 //        objectMetadata.setContentLength(file.getSize());
@@ -43,12 +45,15 @@ public class AwsS3Service {
 //        //해당 url
 //        URL url = s3Client.getUrl(bucket, s3name);
 //        log.info("주소는" + url.toString());
+//        question.setPr_image_name(s3name);
+//        question.setPr_image_path(url.toString());
 //        return s3name;
 //    }
 
     //s3에 실제 업로드 하는 서비스
     //byte[] 가 아닌 file을 보내서 처리해도 가능.
-    public String uploadfile(String s3name, byte[] image) {
+    //db에 저장위해 반드시 해당 서비스 사용.
+    public String uploadfile(String s3name, byte[] image, Question question) {
         ObjectMetadata objectMetadata = new ObjectMetadata();
         objectMetadata.setContentType("image/png");
         objectMetadata.setContentLength(image.length);
@@ -62,6 +67,8 @@ public class AwsS3Service {
         //해당 url
         URL url = s3Client.getUrl(bucket, s3name);
         log.info("주소는" + url.toString());
+        question.setPr_image_name(s3name);
+        question.setPr_image_path(url.toString());
         return s3name;
     }
 
