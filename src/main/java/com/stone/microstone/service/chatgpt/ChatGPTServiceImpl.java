@@ -20,10 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -70,18 +67,79 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         }
 
         log.debug("[+] 요약된 텍스트를 기반으로 문제를 생성합니다.");
+
+        List<Map<String, String>> imageQuestions = generateImageQuestions(summarizedText);
+
         //GPT에 문제 생성 요청
-        ChatCompletionDto chatCompletionDto = ChatCompletionDto.builder()
+        ChatCompletionDto textCompletion = ChatCompletionDto.builder()
                 .model("gpt-4o-mini")
                 .messages(List.of(ChatRequestMsgDto.builder()
                         .role("user")
                         .content("다음 요약된 텍스트를 기반으로 서론없이 객관식을 15문제 생성해줘. 수능문제처럼 말투를 사용하되, 답은 나오지 않게 생성해줘. : " + summarizedText)
                         .build()))
                 .build();
-        log.debug("문제 생성 정보={}", chatCompletionDto.toString());
+        log.debug("문제 생성 정보={}", textCompletion.toString());
 
-        return executePrompt(chatCompletionDto);
+        Map<String, Object> textQuestionsResponse = executePrompt(textCompletion);
+        String textQuestions = (String) textQuestionsResponse.get("content");
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("imageQuestions", imageQuestions);
+        result.put("textQuestions", textQuestions);
+
+        return result;
     }
+
+    private List<Map<String, String>> generateImageQuestions(String summarizedText) {
+        List<Map<String, String>> imageQuestions = new ArrayList<>();
+        for (int i = 1; i <= 5; i++) {
+            String questionPrompt = "다음 요약된 텍스트를 기반으로 객관식 문제 " + i + "번을 생성하고, 이를 설명하는 이미지를 생성해줘: " + summarizedText;
+
+            // ChatGPT로 문제 텍스트 생성
+            ChatCompletionDto questionCompletion = ChatCompletionDto.builder()
+                    .model("gpt-4o-mini")
+                    .messages(List.of(ChatRequestMsgDto.builder()
+                            .role("user")
+                            .content(questionPrompt)
+                            .build()))
+                    .build();
+            Map<String, Object> questionResponse = executePrompt(questionCompletion);
+            String questionText = (String) questionResponse.get("content");
+
+            // DALL-E 3로 이미지 생성
+            String imageUrl = generateImage(questionText);
+
+            Map<String, String> questionWithImage = new HashMap<>();
+            questionWithImage.put("question", questionText);
+            questionWithImage.put("imageUrl", imageUrl);
+
+            imageQuestions.add(questionWithImage);
+        }
+        return imageQuestions;
+    }
+
+    private String generateImage(String description) {
+        log.debug("[+] 이미지 생성 요청: {}", description);
+
+        // OpenAI API 요청 생성
+        ChatCompletionDto dalleCompletion = ChatCompletionDto.builder()
+                .model("dall-e-2")
+                .messages(List.of(ChatRequestMsgDto.builder()
+                        .role("user")
+                        .content(description)
+                        .build()))
+                .build();
+
+        Map<String, Object> imageResponse = executePrompt(dalleCompletion);
+
+        // 이미지 URL 추출
+        String imageUrl = (String) imageResponse.get("content");
+        log.debug("생성된 이미지 URL: {}", imageUrl);
+
+        return imageUrl;
+    }
+
+
 
     @Override
     public Map<String, Object> generateAnswer(String questionText) {
@@ -121,28 +179,38 @@ public class ChatGPTServiceImpl implements ChatGPTService {
     }
 
     private Map<String, Object> executePrompt(ChatCompletionDto chatCompletionDto) {
-        //GPT 모델에 요청을 보내고 응답을 처리하는 메소드
         Map<String, Object> resultMap = new HashMap<>();
         HttpHeaders headers = chatGPTConfig.httpHeaders();
         HttpEntity<ChatCompletionDto> requestEntity = new HttpEntity<>(chatCompletionDto, headers);
 
-        String promptUrl = chatGPTConfig.getApiUrl(); // 설정된 API URL 가져오기
-        //API요청을 보내고 응답을 처리
+        String promptUrl;
+        if (chatCompletionDto.getModel().startsWith("dall")) {
+            promptUrl = chatGPTConfig.getDalleApiUrl();
+        } else {
+            promptUrl = chatGPTConfig.getApiUrl();
+        }
+
         ResponseEntity<String> response = chatGPTConfig
                 .restTemplate()
                 .exchange(promptUrl, HttpMethod.POST, requestEntity, String.class);
         try {
             ObjectMapper om = new ObjectMapper();
             Map<String, Object> responseMap = om.readValue(response.getBody(), new TypeReference<>() {});
-            log.debug("API 응답: {}", responseMap); // 응답 확인을 위한 로그
+            log.debug("API 응답: {}", responseMap);
 
-            // 응답에서 필요한 부분을 추출
-            List<Map<String, Object>> choices = (List<Map<String, Object>>) responseMap.get("choices");
-            if (choices != null && !choices.isEmpty()) {
-                Map<String, Object> firstChoice = choices.get(0);
-                Map<String, Object> message = (Map<String, Object>) firstChoice.get("message");
-                if (message != null) {
-                    resultMap.put("content", message.get("content"));
+            if (chatCompletionDto.getModel().startsWith("dall")) {
+                // DALL-E 응답 처리
+                String imageUrl = (String) ((Map<String, Object>) responseMap.get("data")).get("url");
+                resultMap.put("content", imageUrl);
+            } else {
+                // GPT 응답 처리
+                List<Map<String, Object>> choices = (List<Map<String, Object>>) responseMap.get("choices");
+                if (choices != null && !choices.isEmpty()) {
+                    Map<String, Object> firstChoice = choices.get(0);
+                    Map<String, Object> message = (Map<String, Object>) firstChoice.get("message");
+                    if (message != null) {
+                        resultMap.put("content", message.get("content"));
+                    }
                 }
             }
         } catch (JsonProcessingException e) {
@@ -152,6 +220,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         }
         return resultMap;
     }
+
 
     @Override
     public QuestionAnswerResponse processText(String problemText, Integer userId) throws IOException {
@@ -167,45 +236,44 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
         // 2단계: 요약된 텍스트로 문제 생성
         Map<String, Object> questionResult = generateQuestion(summarizedText);
-        String question = (String) questionResult.get("content");
-        log.debug("생성된 질문: " + question);
+        String textQuestions = (String) questionResult.get("textQuestions");
+        List<Map<String, String>> imageQuestions = (List<Map<String, String>>) questionResult.get("imageQuestions");
+        log.debug("생성된 질문: " + textQuestions);
 
         // 3단계: 질문으로 답변 생성
-        Map<String, Object> answerResult = generateAnswer(question);
+        Map<String, Object> answerResult = generateAnswer(textQuestions);
         String answerText = (String) answerResult.get("content");
         if (answerText == null || answerText.trim().isEmpty()) {
             throw new IllegalArgumentException("생성된 답변이 없습니다.");
         }
         log.debug("생성된 답변: " + answerText);
 
-        return workBookService.getWorkBook(question, summarizedText, answerText, userId);
+        return workBookService.getWorkBook(textQuestions, summarizedText, answerText, userId, imageQuestions);
     }
 
     @Transactional
     @Override
-    public QuestionAnswerResponse getRetextWorkBook(int userId){
-        // 기존 문제집을 기반으로 새 문제집을 생성하는 메소드
-
+    public QuestionAnswerResponse getRetextWorkBook(int userId) {
         Optional<WorkBook> newwork = workBookRepository.findLastWorkBook();
-        //재생성을위해 기존에 저장된 요약문을 가져옴
-        WorkBook lastWorkBook=newwork.orElseThrow(() -> new RuntimeException("기존 문제집이 존재하지 않음. User ID: " + userId));
-        // 저장된 요약 텍스트로 새로운 문제를 생성
-        Map<String,Object> questionResult = regenerateQuestion(lastWorkBook.getWb_sumtext(), lastWorkBook.getWb_content()); //저장해둔 요약문자로 다시 생성.
-        String newQuestion=(String) questionResult.get("content");
-        log.debug("새 질문={}",newQuestion);
+        WorkBook lastWorkBook = newwork.orElseThrow(() -> new RuntimeException("기존 문제집이 존재하지 않음. User ID: " + userId));
 
-        //답 생성.
+        Map<String, Object> questionResult = regenerateQuestion(lastWorkBook.getWb_sumtext(), lastWorkBook.getWb_content());
+        String newQuestion = (String) questionResult.get("content");
+        log.debug("새 질문={}", newQuestion);
+
         Map<String, Object> answerResult = generateAnswer(newQuestion);
         String answerText = (String) answerResult.get("content");
         if (answerText == null || answerText.trim().isEmpty()) {
             throw new RuntimeException("생성된 답변이 없습니다.");
         }
-        //저장 작업 수행.
-        WorkBook saveWorkBook = workBookService.findLastWorkBook(newQuestion,answerText, userId);
 
-        return new QuestionAnswerResponse(saveWorkBook.getWb_id(),saveWorkBook.getWb_title(),newQuestion,answerText);
+        WorkBook saveWorkBook = workBookService.findLastWorkBook(newQuestion, answerText, userId);
 
+        // 이미지 질문과 텍스트 질문 처리
+        List<Map<String, String>> imageQuestions = (List<Map<String, String>>) questionResult.get("imageQuestions");
+        String textQuestions = (String) questionResult.get("textQuestions");
 
+        return new QuestionAnswerResponse(saveWorkBook.getWb_id(), saveWorkBook.getWb_title(), newQuestion, answerText, imageQuestions, textQuestions);
     }
 
 

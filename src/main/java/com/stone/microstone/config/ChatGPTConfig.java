@@ -15,6 +15,9 @@ public class ChatGPTConfig {
     @Value("${gpt4o.api.url}")
     private String apiUrl;
 
+    @Value("${dalle3.api.url}")
+    private String dalleApiUrl;
+
     @Bean
     public RestTemplate restTemplate() {
         return new RestTemplate();
@@ -29,5 +32,9 @@ public class ChatGPTConfig {
 
     public String getApiUrl() {
         return apiUrl;
+    }
+
+    public String getDalleApiUrl() {
+        return dalleApiUrl;
     }
 }

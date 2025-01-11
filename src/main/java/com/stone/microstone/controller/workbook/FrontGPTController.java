@@ -9,7 +9,7 @@ import com.stone.microstone.service.ChatGPTService;
 import com.stone.microstone.repository.workbook.WorkBookRepository;
 import com.stone.microstone.service.workbook.pdf.PdfService;
 import com.stone.microstone.service.workbook.WorkBookService;
-import jakarta.servlet.http.HttpSession;
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -22,6 +22,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.FileNotFoundException;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -34,36 +35,42 @@ public class FrontGPTController {
     private final WorkBookService workBookService;
     private final PdfService pdfService;
     private final WorkBookRepository workBookRepository;
-    private final HttpSession httpSession;
 
     public FrontGPTController(ChatGPTService chatGPTService, WorkBookService workBookService,
-                             PdfService pdfService,WorkBookRepository workBookRepository,
-                             HttpSession httpSession) {
+                             PdfService pdfService,WorkBookRepository workBookRepository
+                             ) {
         this.chatGPTService = chatGPTService;
         this.workBookService = workBookService;
         this.pdfService = pdfService;
         this.workBookRepository = workBookRepository;
-        this.httpSession = httpSession;
+
     }
-    @PostMapping("/processText") //사용자가 보낸 문제 텍스트를 처리하는 api
+    @PostMapping("/processText")
     public ResponseEntity<Map<String, Object>> frontprocessText(@RequestBody String problemText, @RequestParam(name = "userId", required = false) Integer userId) {
         log.debug("받은 문제 텍스트: " + problemText);
 
-        try { //전달받은 문제 텍스트 처리하여 서비스 수행
+        try {
             QuestionAnswerResponse response = chatGPTService.processText(problemText, userId);
-            return new ResponseEntity<>(Map.of("message", response), HttpStatus.OK);
+            List<Map<String, String>> imageQuestions = (List<Map<String, String>>) response.getImageQuestions();
+            String textQuestions = response.getTextQuestions();
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("message", "문제집 생성 완료");
+            result.put("imageQuestions", imageQuestions);
+            result.put("textQuestions", textQuestions);
+
+            return ResponseEntity.ok(result);
+
         } catch (IllegalArgumentException e) {
-            log.error("입력 오류", e.getMessage());
+            log.error("입력 오류", e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
-            log.error("오류 발생", e.getMessage());
+            log.error("오류 발생", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "WorkBook 처리 중 오류가 발생했습니다: " + e.getMessage()));
         }
-
     }
-
 
     @PostMapping("/retext") //생성된 문제를 재생성을 수행하는 api
     public ResponseEntity<Object> frontretext(@RequestParam Integer userId){

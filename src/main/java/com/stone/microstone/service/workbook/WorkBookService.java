@@ -44,7 +44,7 @@ public class WorkBookService {
 
     //기존의 저장된 문제집을 찾고,문제집 pdf 테이블을 생성한뒤.json 응답을위한 dto 생성후 반환
     @Transactional
-    public QuestionAnswerResponse getWorkBook(String Question, String summ, String answer, int userId) throws IOException {
+    public QuestionAnswerResponse getWorkBook(String Question, String summ, String answer, int userId, List<Map<String, String>> imageQuestions) throws IOException {
         if (answer == null || answer.trim().isEmpty()) {
             log.error("생성된 답변이 없습니다.");
             throw new RuntimeException("생성된 답변이 존재하지 않음. User ID: " + userId);
@@ -54,9 +54,12 @@ public class WorkBookService {
         //pdf테이블들 생성.
         pdfService.save(saveWorkBook.getWb_id(),userId);
         pdfService.answersave(saveWorkBook.getWb_id(),userId);
+        //이미지질문과 텍스트질문을 분리
+        String textQuestions = Question;
 
         //dto
-        return new QuestionAnswerResponse(saveWorkBook.getWb_id(),saveWorkBook.getWb_title(),Question,answer);
+        return new QuestionAnswerResponse(saveWorkBook.getWb_id(), saveWorkBook.getWb_title(), Question, answer, imageQuestions, textQuestions);
+
     }
 
     //유저 정보를 이용하여 유저가 생성한 문제를 저장하기 위해 수행하는 메소드.
