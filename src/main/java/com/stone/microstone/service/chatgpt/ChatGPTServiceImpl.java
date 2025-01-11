@@ -29,7 +29,6 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
     private final ChatGPTConfig chatGPTConfig;
     private final WorkBookService workBookService;
-
     private final WorkBookRepository workBookRepository;
 
     public ChatGPTServiceImpl(ChatGPTConfig chatGPTConfig,
@@ -48,7 +47,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
                 .model("gpt-4o-mini")
                 .messages(List.of(ChatRequestMsgDto.builder()
                         .role("user")
-                        .content("다음 텍스트를 한국어로 단락별 핵심으로 요약해줘: " + text)
+                        .content("다음 텍스트를 한국어로 단락별 핵심으로 요약해주되, 이미지생성시 정책에 위배되지 않도록 요약해줘: " + text)
                         .build()))
                 .build();
         log.debug("요약된 정보={}", chatCompletionDto.toString());
@@ -61,7 +60,6 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
     @Override
     public Map<String, Object> generateQuestion(String summarizedText) {
-        //요약된 텍스트를 기반으로 문제를 생성하는 메소드
         if (summarizedText == null || summarizedText.trim().isEmpty()) {
             log.error("요약된 텍스트가 없습니다.");
             throw new IllegalArgumentException("요약된 텍스트가 없습니다.");
@@ -70,23 +68,15 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         log.debug("[+] 요약된 텍스트를 기반으로 문제를 생성합니다.");
 
         List<Map<String, String>> imageQuestions = generateImageQuestions(summarizedText);
-
-        //GPT에 문제 생성 요청
-        ChatCompletionDto textCompletion = ChatCompletionDto.builder()
-                .model("gpt-4o-mini")
-                .messages(List.of(ChatRequestMsgDto.builder()
-                        .role("user")
-                        .content("다음 요약된 텍스트를 기반으로 서론없이 객관식을 15문제 생성해줘. 수능문제처럼 말투를 사용하되, 답은 나오지 않게 생성해줘. : " + summarizedText)
-                        .build()))
-                .build();
-        log.debug("문제 생성 정보={}", textCompletion.toString());
-
-        Map<String, Object> textQuestionsResponse = executePrompt(textCompletion);
-        String textQuestions = (String) textQuestionsResponse.get("content");
+        String textQuestions = generateTextQuestions(summarizedText);
 
         Map<String, Object> result = new HashMap<>();
         result.put("imageQuestions", imageQuestions);
         result.put("textQuestions", textQuestions);
+
+        // 답변 생성 메서드 호출
+        Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions);
+        result.put("answers", answerResult); // 답변을 결과 맵에 추가
 
         return result;
     }
@@ -94,7 +84,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
     private List<Map<String, String>> generateImageQuestions(String summarizedText) {
         List<Map<String, String>> imageQuestions = new ArrayList<>();
         for (int i = 1; i <= 5; i++) {
-            String questionPrompt = "다음 요약된 텍스트를 기반으로 객관식 문제 " + i + "번을 생성하고, 이를 설명하는 이미지를 생성해줘: " + summarizedText;
+            String questionPrompt = "다음 요약된 텍스트를 기반으로 서론없이 4지선다 객관식 문제 " + i + "번을 생성하줘 수능문제처럼 말투를 사용하되, 답은 나오지 않게 생성해줘. " + summarizedText;
 
             // ChatGPT로 문제 텍스트 생성
             ChatCompletionDto questionCompletion = ChatCompletionDto.builder()
@@ -119,6 +109,20 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         return imageQuestions;
     }
 
+    private String generateTextQuestions(String summarizedText) {
+        ChatCompletionDto textCompletion = ChatCompletionDto.builder()
+                .model("gpt-4o-mini")
+                .messages(List.of(ChatRequestMsgDto.builder()
+                        .role("user")
+                        .content("다음 요약된 텍스트를 기반으로 서론없이 4지선다 객관식을 6번부터 15번까지 10문제 생성해줘. 수능문제처럼 말투를 사용하되, 답은 나오지 않게 생성해줘. : " + summarizedText)
+                        .build()))
+                .build();
+        log.debug("문제 생성 정보={}", textCompletion.toString());
+
+        Map<String, Object> textQuestionsResponse = executePrompt(textCompletion);
+        return (String) textQuestionsResponse.get("content");
+    }
+
     private String generateImage(String description) {
         log.debug("[+] 이미지 생성 요청: {}", description);
 
@@ -138,20 +142,24 @@ public class ChatGPTServiceImpl implements ChatGPTService {
     }
 
     @Override
-    public Map<String, Object> generateAnswer(String questionText) {
-        //생성된 문제들을 기반으로 답을 생성하는 메소드
-        if (questionText == null || questionText.trim().isEmpty()) {
+    public Map<String, Object> generateAnswer(List<Map<String, String>> imageQuestions, String textQuestions) {
+        if ((imageQuestions == null || imageQuestions.isEmpty()) && (textQuestions == null || textQuestions.trim().isEmpty())) {
             log.error("질문 텍스트가 없습니다.");
             throw new IllegalArgumentException("질문 텍스트가 없습니다.");
         }
 
         log.debug("[+] 질문 텍스트를 기반으로 답변을 생성합니다.");
-        //GPT에 답 생성 요청
+
+        // 이미지 질문을 문자열로 변환
+        String imageQuestionsString = convertImageQuestionsToString(imageQuestions);
+
+        String combinedQuestions = "이미지 문제 (1-5번):\n" + imageQuestionsString + "\n\n텍스트 문제 (6-15번):\n" + textQuestions;
+
         ChatCompletionDto chatCompletionDto = ChatCompletionDto.builder()
                 .model("gpt-4o-mini")
                 .messages(List.of(ChatRequestMsgDto.builder()
                         .role("user")
-                        .content("다음 생성된 문제들의 서론없이 정확한 답과 4줄이 넘지 않는 자세한 해설을 생성해줘. '*'이 필요하면 사용하되, '*'을 사용해서 강조하지 말아줘.: " + questionText)
+                        .content("다음 생성된 문제들의 서론 없이 1번부터 15번까지 순서대로 정확한 답과 4줄이 넘지 않는 자세한 해설을 생성해줘. '*'이 필요하면 사용하되, '*'을 사용해서 강조하지 말아줘.: " + combinedQuestions)
                         .build()))
                 .build();
         log.debug("답변 생성 정보={}", chatCompletionDto.toString());
@@ -159,15 +167,28 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         return executePrompt(chatCompletionDto);
     }
 
+
+    // 이미지 질문을 문자열로 변환하는 메서드
+    private String convertImageQuestionsToString(List<Map<String, String>> imageQuestions) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < imageQuestions.size(); i++) {
+            Map<String, String> question = imageQuestions.get(i);
+            sb.append((i + 1)).append(". ").append(question.get("question")).append("\n");
+            sb.append("이미지 URL: ").append(question.get("imageUrl")).append("\n");
+        }
+        return sb.toString();
+    }
+
+
     @Override
-    public Map<String, Object> regenerateQuestion(String summarizedText,String contextText) {
+    public Map<String, Object> regenerateQuestion(String summarizedText, String contextText) {
         // 생성된 문제들을 기반으로 새로운 문제를 생성하는 메소드
         ChatCompletionDto chatCompletionDto = ChatCompletionDto.builder()
                 .model("gpt-4o-mini")
                 .messages(List.of(ChatRequestMsgDto.builder()
                         .role("user")
                         .content("다음 주어진 텍스트를 기반으로, 이전 문제와 겹치지 않는 새로운 객관식 문제를 서론 없이 15문제 생성해줘. 수능문제처럼 말투를 사용하되, 답은 나오지 않게 생성해줘. " +
-                                "[이전문제] "+contextText + "[요약텍스트]" +summarizedText)
+                                "[이전문제] " + contextText + "[요약텍스트]" + summarizedText)
                         .build()))
                 .build();
         log.debug("재생성 문제 정보={}", chatCompletionDto.toString());
@@ -197,7 +218,8 @@ public class ChatGPTServiceImpl implements ChatGPTService {
                 .exchange(promptUrl, HttpMethod.POST, requestEntity, String.class);
         try {
             ObjectMapper om = new ObjectMapper();
-            Map<String, Object> responseMap = om.readValue(response.getBody(), new TypeReference<>() {});
+            Map<String, Object> responseMap = om.readValue(response.getBody(), new TypeReference<>() {
+            });
             log.debug("API 응답: {}", responseMap);
 
             if (model.startsWith("dall")) {
@@ -246,7 +268,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         log.debug("생성된 질문: " + textQuestions);
 
         // 3단계: 질문으로 답변 생성
-        Map<String, Object> answerResult = generateAnswer(textQuestions);
+        Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions);
         String answerText = (String) answerResult.get("content");
         if (answerText == null || answerText.trim().isEmpty()) {
             throw new IllegalArgumentException("생성된 답변이 없습니다.");
@@ -259,24 +281,28 @@ public class ChatGPTServiceImpl implements ChatGPTService {
     @Transactional
     @Override
     public QuestionAnswerResponse getRetextWorkBook(int userId) {
+        // 마지막 문제집을 가져옵니다.
         Optional<WorkBook> newwork = workBookRepository.findLastWorkBook();
         WorkBook lastWorkBook = newwork.orElseThrow(() -> new RuntimeException("기존 문제집이 존재하지 않음. User ID: " + userId));
 
+        // 새로운 문제를 생성합니다.
         Map<String, Object> questionResult = regenerateQuestion(lastWorkBook.getWb_sumtext(), lastWorkBook.getWb_content());
         String newQuestion = (String) questionResult.get("content");
         log.debug("새 질문={}", newQuestion);
 
-        Map<String, Object> answerResult = generateAnswer(newQuestion);
+        // 이미지 질문과 텍스트 질문을 받아옵니다.
+        List<Map<String, String>> imageQuestions = (List<Map<String, String>>) questionResult.get("imageQuestions");
+        String textQuestions = (String) questionResult.get("textQuestions");
+
+        // 생성된 질문에 대한 답변을 생성합니다.
+        Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions);
         String answerText = (String) answerResult.get("content");
         if (answerText == null || answerText.trim().isEmpty()) {
             throw new RuntimeException("생성된 답변이 없습니다.");
         }
 
+        // 새로운 문제집을 저장합니다.
         WorkBook saveWorkBook = workBookService.findLastWorkBook(newQuestion, answerText, userId);
-
-        // 이미지 질문과 텍스트 질문 처리
-        List<Map<String, String>> imageQuestions = (List<Map<String, String>>) questionResult.get("imageQuestions");
-        String textQuestions = (String) questionResult.get("textQuestions");
 
         return new QuestionAnswerResponse(saveWorkBook.getWb_id(), saveWorkBook.getWb_title(), newQuestion, answerText, imageQuestions, textQuestions);
     }
