@@ -52,7 +52,8 @@ public class ChatGPTServiceImpl implements ChatGPTService {
                 .model("gpt-4o-mini")
                 .messages(List.of(ChatRequestMsgDto.builder()
                         .role("user")
-                        .content("다음 텍스트를 한국어로 단락별 핵심으로 요약해주되, 이미지생성시 정책에 위배되지 않도록 요약해줘: " + text)
+                        .content("Summarize the following text into concise key points for each paragraph in Korean." +
+                                " Ensure the summary complies with image-generation policies and avoids sensitive or policy-violating content: " + text)
                         .build()))
                 .build();
         log.debug("요약된 정보={}", chatCompletionDto.toString());
@@ -89,9 +90,8 @@ public class ChatGPTServiceImpl implements ChatGPTService {
     private List<Map<String, String>> generateImageQuestions(String summarizedText) {
         List<Map<String, String>> imageQuestions = new ArrayList<>();
         for (int i = 1; i <= 5; i++) {
-            String questionPrompt = "다음 요약된 텍스트를 기반으로 서론없이 4지선다 객관식 문제 1개만 생성하세요. 문제 번호는 " + i + "번입니다." +
-                    " 문제의 4지선다 보기 번호를 ①,②,③,④로 표시하고 수능문제처럼 말투를 사용하되, 답은 나오지 않게 생성해주세요." +
-                    "'*'이 필요하면 사용하되, '*'을 사용해서 강조하지 말아줘. " + summarizedText;
+            String questionPrompt = "Using the summarized text, create one 4-option multiple-choice question without an introduction. Use a formal tone akin to Korean college entrance exam questions." +
+                    " Label the choices as ①, ②, ③, and ④, but do not include the correct answer. If '*' is needed, use it sparingly and avoid emphasizing content with it. " + summarizedText;
 
             ChatCompletionDto questionCompletion = ChatCompletionDto.builder()
                     .model("gpt-4o-mini")
@@ -138,8 +138,8 @@ public class ChatGPTServiceImpl implements ChatGPTService {
                 .model("gpt-4o-mini")
                 .messages(List.of(ChatRequestMsgDto.builder()
                         .role("user")
-                        .content("다음 요약된 텍스트를 기반으로 서론없이 4지선다 객관식을 6번부터 15번까지 10문제 생성해줘. 문제의 4지선다 보기 번호를 ①,②,③,④로 표시하고 수능문제처럼 말투를 사용하되, 답은 나오지 않게 생성해줘. " +
-                                "'*'이 필요하면 사용하되, '*'을 사용해서 강조하지 말아줘.: " + summarizedText)
+                        .content("Using the summarized text, generate 10 multiple-choice questions numbered 6 through 15. Exclude any introductory text. Use a formal tone in line with Korean college entrance exam style." +
+                                " Label the options as ①, ②, ③, and ④, ensuring no answers are provided. If '*' is necessary, use it minimally and not for emphasis. " + summarizedText)
                         .build()))
                 .build();
         log.debug("문제 생성 정보={}", textCompletion.toString());
@@ -189,7 +189,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
                 .model("gpt-4o-mini")
                 .messages(List.of(ChatRequestMsgDto.builder()
                         .role("user")
-                        .content("다음 생성된 문제들의 서론 없이 1번부터 15번까지 순서대로 정확한 답과 4줄이 넘지 않는 자세한 해설을 생성해줘. '*'이 필요하면 사용하되, '*'을 사용해서 강조하지 말아줘.: " + combinedQuestions)
+                        .content("Provide the exact answers to the generated questions (1–15) along with detailed explanations limited to four lines each. If '*' is required, use it sparingly and avoid using it for emphasis. " + combinedQuestions)
                         .build()))
                 .build();
         log.debug("답변 생성 정보={}", chatCompletionDto.toString());
@@ -217,8 +217,8 @@ public class ChatGPTServiceImpl implements ChatGPTService {
                 .model("gpt-4o-mini")
                 .messages(List.of(ChatRequestMsgDto.builder()
                         .role("user")
-                        .content("다음 주어진 텍스트를 기반으로, 이전 문제와 겹치지 않는 새로운 객관식 문제를 서론 없이 15문제 생성해줘. 수능문제처럼 말투를 사용하되, 답은 나오지 않게 생성해줘. " +
-                                "[이전문제] " + contextText + "[요약텍스트]" + summarizedText)
+                        .content("Using the provided text, create 15 new multiple-choice questions that do not repeat or overlap with the previous ones. Maintain a formal tone consistent with Korean college entrance exam questions. Label the options as ①, ②, ③, and ④, and do not include the correct answers. " +
+                                "[Previous Questions] " + contextText + "[Summarized Text]" + summarizedText)
                         .build()))
                 .build();
         log.debug("재생성 문제 정보={}", chatCompletionDto.toString());
