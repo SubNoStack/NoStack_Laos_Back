@@ -13,7 +13,7 @@ import lombok.AllArgsConstructor;
 @Builder
 public class DalleRequestDto {
     @Builder.Default
-    private String model = "dall-e-2";
+    private String model = "dall-e-3";
 
     private String prompt;
 
@@ -21,7 +21,7 @@ public class DalleRequestDto {
     private int n = 1;
 
     @Builder.Default
-    private String size = "512x512";
+    private String size = "1024x1024";
 
     @Builder.Default
     private String quality = "standard";

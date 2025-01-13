@@ -21,10 +21,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.FileNotFoundException;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 //chatgptcontroller와 같으나 세션을 사용하지 않는 웹전용 api.
 @Slf4j
@@ -54,10 +51,15 @@ public class FrontGPTController {
             List<Map<String, String>> imageQuestions = (List<Map<String, String>>) response.getImageQuestions();
             String textQuestions = response.getTextQuestions();
 
-            Map<String, Object> result = new HashMap<>();
-            result.put("message", "문제집 생성 완료");
+            // 답지 생성
+            Map<String, Object> answerResponse = chatGPTService.generateAnswer(imageQuestions, textQuestions);
+
+            Map<String, Object> result = new LinkedHashMap<>();
             result.put("imageQuestions", imageQuestions);
             result.put("textQuestions", textQuestions);
+            result.put("answerSheet", answerResponse);
+            result.put("message", "문제집 생성 완료");
+
 
             return ResponseEntity.ok(result);
 

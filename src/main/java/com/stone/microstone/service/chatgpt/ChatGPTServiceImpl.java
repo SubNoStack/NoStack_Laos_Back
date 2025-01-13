@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stone.microstone.repository.workbook.WorkBookRepository;
 import com.stone.microstone.service.workbook.WorkBookService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -38,6 +39,10 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         this.workBookService = workBookService;
         this.workBookRepository = workBookRepository;
     }
+
+    @Value("${app.test-mode}")
+    private boolean testMode;
+
 
     @Override
     public Map<String, Object> summarizeText(String text) { //주어진 텍스트를 요약하는 메소드
@@ -84,9 +89,10 @@ public class ChatGPTServiceImpl implements ChatGPTService {
     private List<Map<String, String>> generateImageQuestions(String summarizedText) {
         List<Map<String, String>> imageQuestions = new ArrayList<>();
         for (int i = 1; i <= 5; i++) {
-            String questionPrompt = "다음 요약된 텍스트를 기반으로 서론없이 4지선다 객관식 문제 " + i + "번을 생성하줘 수능문제처럼 말투를 사용하되, 답은 나오지 않게 생성해줘. " + summarizedText;
+            String questionPrompt = "다음 요약된 텍스트를 기반으로 서론없이 4지선다 객관식 문제 1개만 생성하세요. 문제 번호는 " + i + "번입니다." +
+                    " 문제의 4지선다 보기 번호를 ①,②,③,④로 표시하고 수능문제처럼 말투를 사용하되, 답은 나오지 않게 생성해주세요." +
+                    "'*'이 필요하면 사용하되, '*'을 사용해서 강조하지 말아줘. " + summarizedText;
 
-            // ChatGPT로 문제 텍스트 생성
             ChatCompletionDto questionCompletion = ChatCompletionDto.builder()
                     .model("gpt-4o-mini")
                     .messages(List.of(ChatRequestMsgDto.builder()
@@ -97,7 +103,9 @@ public class ChatGPTServiceImpl implements ChatGPTService {
             Map<String, Object> questionResponse = executePrompt(questionCompletion);
             String questionText = (String) questionResponse.get("content");
 
-            // DALL-E 3로 이미지 생성
+            // 생성된 문제 텍스트를 정제하는 로직 추가
+            questionText = cleanQuestionText(questionText, i);
+
             String imageUrl = generateImage(questionText);
 
             Map<String, String> questionWithImage = new HashMap<>();
@@ -109,12 +117,29 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         return imageQuestions;
     }
 
+    private String cleanQuestionText(String questionText, int questionNumber) {
+        // 문제 번호로 시작하는지 확인하고, 그렇지 않으면 추가
+        if (!questionText.trim().startsWith(questionNumber + ".")) {
+            questionText = questionNumber + ". " + questionText.trim();
+        }
+
+        // 여러 문제가 포함된 경우 첫 번째 문제만 추출
+        int nextQuestionIndex = questionText.indexOf((questionNumber + 1) + ".");
+        if (nextQuestionIndex != -1) {
+            questionText = questionText.substring(0, nextQuestionIndex).trim();
+        }
+
+        return questionText;
+    }
+
+
     private String generateTextQuestions(String summarizedText) {
         ChatCompletionDto textCompletion = ChatCompletionDto.builder()
                 .model("gpt-4o-mini")
                 .messages(List.of(ChatRequestMsgDto.builder()
                         .role("user")
-                        .content("다음 요약된 텍스트를 기반으로 서론없이 4지선다 객관식을 6번부터 15번까지 10문제 생성해줘. 수능문제처럼 말투를 사용하되, 답은 나오지 않게 생성해줘. : " + summarizedText)
+                        .content("다음 요약된 텍스트를 기반으로 서론없이 4지선다 객관식을 6번부터 15번까지 10문제 생성해줘. 문제의 4지선다 보기 번호를 ①,②,③,④로 표시하고 수능문제처럼 말투를 사용하되, 답은 나오지 않게 생성해줘. " +
+                                "'*'이 필요하면 사용하되, '*'을 사용해서 강조하지 말아줘.: " + summarizedText)
                         .build()))
                 .build();
         log.debug("문제 생성 정보={}", textCompletion.toString());
@@ -124,11 +149,16 @@ public class ChatGPTServiceImpl implements ChatGPTService {
     }
 
     private String generateImage(String description) {
+        if (testMode) {
+            log.debug("[테스트 모드] 더미 이미지 URL 반환");
+            return "https://example.com/dummy-image.jpg";
+        }
+
         log.debug("[+] 이미지 생성 요청: {}", description);
 
         // OpenAI API 요청 생성
         DalleRequestDto dalleRequest = DalleRequestDto.builder()
-                .model("dall-e-2")
+                .model("dall-e-3")
                 .prompt(description)
                 .build();
 
