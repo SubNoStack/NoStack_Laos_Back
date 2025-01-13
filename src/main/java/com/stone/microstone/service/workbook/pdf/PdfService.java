@@ -39,7 +39,7 @@ public class PdfService {
 
     //pdf 테이블에 데이터를 저장.
     @Transactional
-    public WorkBookPDF save(int wb_id, int user_id) throws IOException {
+    public WorkBookPDF save(int wb_id) throws IOException {
 
         //문제집을 문제id와 유저 정보로 찾는것.
         WorkBook workBook = workbookRepository.findByuserId(wb_id).orElseThrow(() -> new RuntimeException("문제집이 존재하지 않음"));
@@ -70,7 +70,7 @@ public class PdfService {
 
     //비어있는 답지pdf 테이블을 생성해 db에 저장을 수행.
     @Transactional
-    public AnswerPDF answersave(int wb_id, int user_id) throws IOException {
+    public AnswerPDF answersave(int wb_id) throws IOException {
 
         WorkBook workBook = workbookRepository.findByuserId(wb_id).orElseThrow(() -> new RuntimeException("문제집이 존재하지 않음"));
 

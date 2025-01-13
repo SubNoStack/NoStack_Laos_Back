@@ -128,7 +128,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
         // OpenAI API 요청 생성
         DalleRequestDto dalleRequest = DalleRequestDto.builder()
-                .model("dall-e-3")
+                .model("dall-e-2")
                 .prompt(description)
                 .build();
 
@@ -250,7 +250,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
 
     @Override
-    public QuestionAnswerResponse processText(String problemText, Integer userId) throws IOException {
+    public QuestionAnswerResponse processText(String problemText) throws IOException {
         log.debug("받은 문제 텍스트: " + problemText);
         // 문제 텍스트를 처리하여 요약, 문제생성, 답변 생성 3단계를 수행
         // 1단계: 문제 텍스트 요약
@@ -275,7 +275,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         }
         log.debug("생성된 답변: " + answerText);
 
-        return workBookService.getWorkBook(textQuestions, summarizedText, answerText, userId, imageQuestions);
+        return workBookService.getWorkBook(textQuestions, summarizedText, answerText, imageQuestions);
     }
 
     @Transactional
