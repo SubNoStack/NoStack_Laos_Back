@@ -61,5 +61,12 @@ public class QuestionRepositoryImpl implements QuestionRepository {
                 .getResultList().stream().findFirst();
     }
 
+    @Override
+    public List<Question>findAllWithWorkBookNosix(WorkBook workBook){
+        return em.createQuery("SELECT q FROM Question q WHERE q.workBook=:workBook and q.pr_wb_id != 6 order by pr_wb_id",Question.class)
+                .setParameter("workBook",workBook)
+                .getResultList();
+    }
+
 
 }

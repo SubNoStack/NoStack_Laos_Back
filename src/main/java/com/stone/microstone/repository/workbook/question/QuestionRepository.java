@@ -17,4 +17,6 @@ public interface QuestionRepository {
 
         List<Question>findAllwithWorkBook(WorkBook workBook);
 
+        List<Question>findAllWithWorkBookNosix(WorkBook workBook);
+
 }

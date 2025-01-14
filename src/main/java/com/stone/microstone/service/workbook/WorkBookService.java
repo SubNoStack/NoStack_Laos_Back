@@ -8,6 +8,7 @@ import com.stone.microstone.dto.workbook.*;
 import com.stone.microstone.dto.chatgpt.QuestionAnswerResponse;
 import com.stone.microstone.repository.workbook.WorkBookRepository;
 import com.stone.microstone.repository.workbook.question.QuestionRepository;
+import com.stone.microstone.service.awss3.AwsS3Service;
 import com.stone.microstone.service.workbook.pdf.PdfService;
 import com.stone.microstone.service.workbook.question.QuestionService;
 import lombok.extern.slf4j.Slf4j;
@@ -144,6 +145,7 @@ public class WorkBookService {
         //문제집 찾기.
         Optional<WorkBook> workBook = workBookRepository.findByuserId(wb_id);
         WorkBookPDF workBookPDF=pdfService.findByworkBook(workBook.get());
+        questionService.delete(workBook.get());
         //저장된 pdf들도 같이 삭제.
         if(workBook != null && workBookPDF.getPdf_path() !=null){
             Path path= Paths.get(workBookPDF.getPdf_path());
@@ -154,6 +156,7 @@ public class WorkBookService {
             Path path= Paths.get(answerPDF.getPdf_path());
             Files.deleteIfExists(path);
         }
+
         //db에서 삭제 수행.
         workBookRepository.deleteById(wb_id);
         //faworkBook.setWb_favorite(true);

@@ -124,6 +124,7 @@ public class AwsS3Service {
     public void deleteFile(String fileName) {
         try{
             s3Client.deleteObject(new DeleteObjectRequest(bucket, fileName));
+            log.info("삭제성공"+fileName);
             log.info(bucket);
         }catch (Exception e){
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "S3 이미지 삭제 실패: " + e.getMessage());

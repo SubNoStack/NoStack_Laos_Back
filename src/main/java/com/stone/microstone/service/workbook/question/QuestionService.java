@@ -49,6 +49,11 @@ public class QuestionService {
         return questions;
     }
 
+    public List<Question> findNoSixQuestion(WorkBook wb){
+        List<Question> questions = questionRepository.findAllWithWorkBookNosix(wb);
+        return questions;
+    }
+
     public List<Question> resave(WorkBook w,List<Map<String,String>> images,String text){
         List<Question> old=findQuestion(w);
         List<Question> newquestion = awsS3Service.updateImage(images,old);
@@ -62,5 +67,19 @@ public class QuestionService {
         questionRepository.save(old.get(old.size()-1));
         return old;
 
+    }
+
+    public void delete(WorkBook w)
+    {
+        List<Question> old=findNoSixQuestion(w);
+        for (Question q : old) {
+            String image=q.getPr_image_name();
+            if(image!=null&&!image.isEmpty()){
+                awsS3Service.deleteFile(image);
+            }else{
+                log.info("이미지 문제 발생"+q.getPr_id());
+            }
+            //awsS3Service.deleteFile(q.getPr_image_name());
+        }
     }
 }
