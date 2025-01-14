@@ -1,12 +1,16 @@
 package com.stone.microstone.service.workbook;
 
+import com.stone.microstone.domain.entitiy.Question;
 import com.stone.microstone.domain.entitiy.WorkBook;
 import com.stone.microstone.domain.entitiy.AnswerPDF;
 import com.stone.microstone.domain.entitiy.WorkBookPDF;
 import com.stone.microstone.dto.workbook.*;
 import com.stone.microstone.dto.chatgpt.QuestionAnswerResponse;
 import com.stone.microstone.repository.workbook.WorkBookRepository;
+import com.stone.microstone.repository.workbook.question.QuestionRepository;
+import com.stone.microstone.service.awss3.AwsS3Service;
 import com.stone.microstone.service.workbook.pdf.PdfService;
+import com.stone.microstone.service.workbook.question.QuestionService;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.core.io.Resource;
@@ -32,31 +36,56 @@ import java.util.stream.Collectors;
 public class WorkBookService {
     private final WorkBookRepository workBookRepository;
     private final PdfService pdfService;
+    private final QuestionService questionService;
 
 
     public WorkBookService(WorkBookRepository workBookRepository,
-                           PdfService pdfService) {
+                           PdfService pdfService,QuestionService questionService) {
         this.workBookRepository = workBookRepository;
         this.pdfService=pdfService;
+        this.questionService=questionService;
 
 
     }
 
     //기존의 저장된 문제집을 찾고,문제집 pdf 테이블을 생성한뒤.json 응답을위한 dto 생성후 반환
     @Transactional
-    public QuestionAnswerResponse getWorkBook(String Question, String summ, String answer, List<Map<String, String>> imageQuestions) throws IOException {
+    public QuestionAnswerResponse getWorkBook(String Question, String summ, String answer, List<Map<String, String>> imageQuestions, List<Question> questions) throws IOException {
         if (answer == null || answer.trim().isEmpty()) {
             log.error("생성된 답변이 없습니다.");
             throw new RuntimeException("생성된 답변이 존재하지 않습니다.");
         }
         WorkBook saveWorkBook = findAndsaveWorkBook(Question, summ, answer);
 
-        // pdf테이블들 생성
+        // pdf테이블들 생성,question담기.
         pdfService.save(saveWorkBook.getWb_id());
         pdfService.answersave(saveWorkBook.getWb_id());
+        questionService.save(saveWorkBook.getWb_id(),questions,Question);
 
         // 이미지질문과 텍스트질문을 분리
         String textQuestions = Question;
+        Optional<WorkBook> newwork = workBookRepository.findLastWorkBook();
+
+        // dto 반환
+        return new QuestionAnswerResponse(saveWorkBook.getWb_id(), saveWorkBook.getWb_title(), Question, answer, imageQuestions, textQuestions);
+    }
+
+    @Transactional
+    public QuestionAnswerResponse getWorkBookwithnosum(String Question, String answer, List<Map<String, String>> imageQuestions, List<Question> questions) throws IOException {
+        if (answer == null || answer.trim().isEmpty()) {
+            log.error("생성된 답변이 없습니다.");
+            throw new RuntimeException("생성된 답변이 존재하지 않습니다.");
+        }
+        WorkBook saveWorkBook = findAndsaveWorkBookwithno(Question, answer);
+
+        // pdf테이블들 생성,question담기.
+        pdfService.save(saveWorkBook.getWb_id());
+        pdfService.answersave(saveWorkBook.getWb_id());
+        questionService.save(saveWorkBook.getWb_id(),questions,Question);
+
+        // 이미지질문과 텍스트질문을 분리
+        String textQuestions = Question;
+        Optional<WorkBook> newwork = workBookRepository.findLastWorkBook();
 
         // dto 반환
         return new QuestionAnswerResponse(saveWorkBook.getWb_id(), saveWorkBook.getWb_title(), Question, answer, imageQuestions, textQuestions);
@@ -80,12 +109,30 @@ public class WorkBookService {
         return workBookRepository.save(newwork);
 
     }
+
+    @Transactional
+    public WorkBook findAndsaveWorkBookwithno(String content,String answer) {
+
+        //다음 문제 번호 찾고 테이블에 행데이터 넣기.
+        int nextid=workBookRepository.findMaxUserid().orElse(0)+1;
+        String title="문제집 "+nextid;
+        String antitle="답안지 "+nextid;
+        WorkBook newwork = new WorkBook();
+        newwork.setWb_title(title);
+        newwork.setWb_content(content);
+        newwork.setWb_create(LocalDate.now());
+        newwork.setWb_answer(answer);
+        newwork.setWb_title_answer(antitle);
+        return workBookRepository.save(newwork);
+
+    }
     //재생성시 마지막에 저장한 문제집을 찾고 다시 문제집을 갱신하는 메소드.
     @Transactional
-    public WorkBook findLastWorkBook(String content, String answer) {
+    public WorkBook findLastWorkBook(String content, String answer,List<Map<String, String>> imageQuestions,String text) {
         //유저를 찾고
         //마지막에 생성한 문제집 찾는다.
         Optional<WorkBook> newwork = workBookRepository.findLastWorkBook();
+        List<Question> oldquestion=questionService.resave(newwork.get(),imageQuestions,text);
         WorkBook newworkBook;
         if(newwork.isEmpty()) {
             throw new RuntimeException("기존 문제집이 존재하지 않음" );
@@ -137,6 +184,7 @@ public class WorkBookService {
         //문제집 찾기.
         Optional<WorkBook> workBook = workBookRepository.findByuserId(wb_id);
         WorkBookPDF workBookPDF=pdfService.findByworkBook(workBook.get());
+        questionService.delete(workBook.get());
         //저장된 pdf들도 같이 삭제.
         if(workBook != null && workBookPDF.getPdf_path() !=null){
             Path path= Paths.get(workBookPDF.getPdf_path());
@@ -147,6 +195,7 @@ public class WorkBookService {
             Path path= Paths.get(answerPDF.getPdf_path());
             Files.deleteIfExists(path);
         }
+
         //db에서 삭제 수행.
         workBookRepository.deleteById(wb_id);
         //faworkBook.setWb_favorite(true);
