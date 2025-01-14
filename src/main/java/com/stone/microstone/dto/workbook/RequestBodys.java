@@ -1,14 +1,17 @@
 package com.stone.microstone.dto.workbook;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Getter
 @Setter
 @AllArgsConstructor
+@NoArgsConstructor
 @Schema(description = "사용자가 보낸 문제생성 텍스트 처리위한 요청")
 public class RequestBodys {
     @Schema(description = "문제텍스트",example = "문제 생성위한 텍스트")

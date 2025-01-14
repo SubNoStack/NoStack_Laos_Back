@@ -91,12 +91,12 @@ public class FrontGPTController {
 
 
     @PostMapping("/processCategory")
-    public ResponseEntity<Map<String, Object>> processCategory(@RequestParam("category") String category) {
+    public ResponseEntity<Map<String, Object>> processCategory(@RequestParam("category") String category,@RequestParam String language) {
         log.debug("받은 카테고리: " + category);
 
         try {
             // 카테고리 문제 생성 호출
-            QuestionAnswerResponse response = chatGPTService.generateCategoryQuestions(category);
+            QuestionAnswerResponse response = chatGPTService.generateCategoryQuestions(category,language);
 
             // 이미지 및 텍스트 문제 추출
             List<Map<String, String>> imageQuestions = (List<Map<String, String>>) response.getImageQuestions();

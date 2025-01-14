@@ -64,6 +64,28 @@ public class WorkBookService {
 
         // 이미지질문과 텍스트질문을 분리
         String textQuestions = Question;
+        Optional<WorkBook> newwork = workBookRepository.findLastWorkBook();
+
+        // dto 반환
+        return new QuestionAnswerResponse(saveWorkBook.getWb_id(), saveWorkBook.getWb_title(), Question, answer, imageQuestions, textQuestions);
+    }
+
+    @Transactional
+    public QuestionAnswerResponse getWorkBookwithnosum(String Question, String answer, List<Map<String, String>> imageQuestions, List<Question> questions) throws IOException {
+        if (answer == null || answer.trim().isEmpty()) {
+            log.error("생성된 답변이 없습니다.");
+            throw new RuntimeException("생성된 답변이 존재하지 않습니다.");
+        }
+        WorkBook saveWorkBook = findAndsaveWorkBookwithno(Question, answer);
+
+        // pdf테이블들 생성,question담기.
+        pdfService.save(saveWorkBook.getWb_id());
+        pdfService.answersave(saveWorkBook.getWb_id());
+        questionService.save(saveWorkBook.getWb_id(),questions,Question);
+
+        // 이미지질문과 텍스트질문을 분리
+        String textQuestions = Question;
+        Optional<WorkBook> newwork = workBookRepository.findLastWorkBook();
 
         // dto 반환
         return new QuestionAnswerResponse(saveWorkBook.getWb_id(), saveWorkBook.getWb_title(), Question, answer, imageQuestions, textQuestions);
@@ -82,6 +104,23 @@ public class WorkBookService {
         newwork.setWb_content(content);
         newwork.setWb_create(LocalDate.now());
         newwork.setWb_sumtext(sumtext);
+        newwork.setWb_answer(answer);
+        newwork.setWb_title_answer(antitle);
+        return workBookRepository.save(newwork);
+
+    }
+
+    @Transactional
+    public WorkBook findAndsaveWorkBookwithno(String content,String answer) {
+
+        //다음 문제 번호 찾고 테이블에 행데이터 넣기.
+        int nextid=workBookRepository.findMaxUserid().orElse(0)+1;
+        String title="문제집 "+nextid;
+        String antitle="답안지 "+nextid;
+        WorkBook newwork = new WorkBook();
+        newwork.setWb_title(title);
+        newwork.setWb_content(content);
+        newwork.setWb_create(LocalDate.now());
         newwork.setWb_answer(answer);
         newwork.setWb_title_answer(antitle);
         return workBookRepository.save(newwork);

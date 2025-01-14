@@ -18,5 +18,5 @@ public interface ChatGPTService {
     @Transactional
     QuestionAnswerResponse getRetextWorkBook();
 
-    QuestionAnswerResponse generateCategoryQuestions(String category);
+    QuestionAnswerResponse generateCategoryQuestions(String category,String language)throws IOException;
 }

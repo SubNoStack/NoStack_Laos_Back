@@ -199,6 +199,8 @@ public class ChatGPTServiceImpl implements ChatGPTService {
                 .build();
         log.debug("답변 생성 정보={}", chatCompletionDto.toString());
 
+        List<Question> q=awsS3Service.uploadfile(imageQuestions);
+
         return executePrompt(chatCompletionDto);
     }
 
@@ -348,7 +350,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
 
     @Override
-    public QuestionAnswerResponse generateCategoryQuestions(String category) {
+    public QuestionAnswerResponse generateCategoryQuestions(String category,String language)throws IOException {
         log.debug("카테고리 문제 생성 시작: " + category);
 
         String prompt;
@@ -379,7 +381,12 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         response.setImageQuestions(imageQuestions);
         response.setTextQuestions(textQuestions);
 
-        return response;
+        Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions);
+        String answerText = (String) answerResult.get("content");
+
+        List<Question> q=awsS3Service.uploadfile(imageQuestions);
+
+        return workBookService.getWorkBookwithnosum(textQuestions,answerText,imageQuestions,q);
     }
 
 
