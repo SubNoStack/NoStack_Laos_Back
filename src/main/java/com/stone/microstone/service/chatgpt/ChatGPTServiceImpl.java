@@ -322,8 +322,10 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         // 마지막 문제집을 가져옵니다.
         Optional<WorkBook> newwork = workBookRepository.findLastWorkBook();
         WorkBook lastWorkBook = newwork.orElseThrow(() -> new RuntimeException("기존 문제집이 존재하지 않음. User ID: "));
+        log.info(lastWorkBook.getWb_sumtext());
 
         // 새로운 문제를 생성합니다.
+        //문제.카테고리별 생성하면 sumtext가 없어서 재생성시 오류가 발생.이거 고쳐주세요.이거안하면 큰일납니다.
         Map<String, Object> questionResult = regenerateQuestion(lastWorkBook.getWb_sumtext(), lastWorkBook.getWb_content());
         String newQuestion = (String) questionResult.get("content");
         log.debug("새 질문={}", newQuestion);
