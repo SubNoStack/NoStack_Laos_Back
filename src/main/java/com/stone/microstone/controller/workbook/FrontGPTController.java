@@ -90,6 +90,41 @@ public class FrontGPTController {
     }
 
 
+    @PostMapping("/processCategory")
+    public ResponseEntity<Map<String, Object>> processCategory(@RequestParam("category") String category) {
+        log.debug("받은 카테고리: " + category);
+
+        try {
+            // 카테고리 문제 생성 호출
+            QuestionAnswerResponse response = chatGPTService.generateCategoryQuestions(category);
+
+            // 이미지 및 텍스트 문제 추출
+            List<Map<String, String>> imageQuestions = (List<Map<String, String>>) response.getImageQuestions();
+            String textQuestions = response.getTextQuestions();
+
+            // 답지 생성
+            Map<String, Object> answerResponse = chatGPTService.generateAnswer(imageQuestions, textQuestions);
+
+            // 결과 맵 생성
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("imageQuestions", imageQuestions);
+            result.put("textQuestions", textQuestions);
+            result.put("answerSheet", answerResponse);
+            result.put("message", "카테고리 문제집 생성 완료");
+
+            return ResponseEntity.ok(result);
+
+        } catch (IllegalArgumentException e) {
+            log.error("입력 오류", e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            log.error("오류 발생", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "카테고리 문제 처리 중 오류가 발생했습니다: " + e.getMessage()));
+        }
+    }
+
     @GetMapping("/all") //문제집 전체조회 수행 api
     public ResponseEntity frontbookall(@RequestParam Integer userId){
 

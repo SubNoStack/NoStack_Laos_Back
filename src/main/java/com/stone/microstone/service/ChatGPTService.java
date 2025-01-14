@@ -18,4 +18,5 @@ public interface ChatGPTService {
     @Transactional
     QuestionAnswerResponse getRetextWorkBook(int userId);
 
+    QuestionAnswerResponse generateCategoryQuestions(String category);
 }
