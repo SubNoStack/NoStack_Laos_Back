@@ -60,7 +60,7 @@ public class ChatGPTController {
         }
 
         try { //전달받은 문제 텍스트 처리하여 서비스 수행
-            QuestionAnswerResponse response = chatGPTService.processText(problemText, userId);
+            QuestionAnswerResponse response = chatGPTService.processText(problemText);
             return new ResponseEntity<>(Map.of("message", response), HttpStatus.OK);
         } catch (IllegalArgumentException e) {
             log.error("입력 오류", e.getMessage());
