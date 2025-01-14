@@ -6,17 +6,14 @@ import com.stone.microstone.domain.entitiy.WorkBookPDF;
 import com.stone.microstone.dto.workbook.*;
 import com.stone.microstone.dto.chatgpt.QuestionAnswerResponse;
 import com.stone.microstone.repository.workbook.WorkBookRepository;
-import com.stone.microstone.service.awss3.S3ImageService;
 import com.stone.microstone.service.workbook.pdf.PdfService;
 import lombok.extern.slf4j.Slf4j;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -295,29 +292,5 @@ public class WorkBookService {
     public void allbookdelete(){
         workBookRepository.deleteAll();
     }
-
-    @Autowired
-    private S3ImageService s3ImageService;
-
-    @Transactional
-    public String uploadImage(MultipartFile file, Integer wb_id) throws IOException {
-        return s3ImageService.updateWorkBookImage(file, wb_id);
-    }
-
-    @Transactional
-    public String getImageUrl(Integer wb_id) {
-        return s3ImageService.getImageUrl(wb_id);
-    }
-
-    @Transactional
-    public String updateImage(MultipartFile file, Integer wb_id) throws IOException {
-        return s3ImageService.updateImage(file, wb_id);
-    }
-
-    @Transactional
-    public void deleteImage(Integer wb_id) {
-        s3ImageService.deleteImage(wb_id);
-    }
-
 
 }
