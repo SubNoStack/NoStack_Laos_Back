@@ -43,7 +43,7 @@ public class WorkBookRepositoryImpl implements WorkBookRepository {
     //생성된 id와 유저정보로 문제집 정보를 삭제하는 메소드.
     @Override
     public void deleteById(int id) {
-        em.createQuery("DELETE FROM WorkBook wb WHERE wb.wb_id=:id",WorkBook.class)
+        em.createQuery("DELETE FROM WorkBook wb WHERE wb.wb_id=:id")
                 .setParameter("id",id)
                 .executeUpdate();
     }
