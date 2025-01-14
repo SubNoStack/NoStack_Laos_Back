@@ -16,7 +16,7 @@ public interface ChatGPTService {
     QuestionAnswerResponse processText(String problemText) throws IOException;
 
     @Transactional
-    QuestionAnswerResponse getRetextWorkBook(int userId);
+    QuestionAnswerResponse getRetextWorkBook();
 
     QuestionAnswerResponse generateCategoryQuestions(String category);
 }

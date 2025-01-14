@@ -310,10 +310,10 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
     @Transactional
     @Override
-    public QuestionAnswerResponse getRetextWorkBook(int userId) {
+    public QuestionAnswerResponse getRetextWorkBook() {
         // 마지막 문제집을 가져옵니다.
         Optional<WorkBook> newwork = workBookRepository.findLastWorkBook();
-        WorkBook lastWorkBook = newwork.orElseThrow(() -> new RuntimeException("기존 문제집이 존재하지 않음. User ID: " + userId));
+        WorkBook lastWorkBook = newwork.orElseThrow(() -> new RuntimeException("기존 문제집이 존재하지 않음. User ID: "));
 
         // 새로운 문제를 생성합니다.
         Map<String, Object> questionResult = regenerateQuestion(lastWorkBook.getWb_sumtext(), lastWorkBook.getWb_content());
@@ -332,7 +332,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         }
 
         // 새로운 문제집을 저장합니다.
-        WorkBook saveWorkBook = workBookService.findLastWorkBook(newQuestion, answerText, userId);
+        WorkBook saveWorkBook = workBookService.findLastWorkBook(newQuestion, answerText);
 
         return new QuestionAnswerResponse(saveWorkBook.getWb_id(), saveWorkBook.getWb_title(), newQuestion, answerText, imageQuestions, textQuestions);
     }

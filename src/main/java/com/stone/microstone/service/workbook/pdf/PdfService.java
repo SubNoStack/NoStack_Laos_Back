@@ -51,7 +51,7 @@ public class PdfService {
 
     //pdf 테이블에 데이터를 저장후 반환..
     @Transactional
-    public WorkBookPDF savedata2(MultipartFile file, int wb_id,int user_id) throws IOException {
+    public WorkBookPDF savedata2(MultipartFile file, int wb_id) throws IOException {
 
         WorkBook workBook = workbookRepository.findByuserId(wb_id).orElseThrow(() -> new RuntimeException("문제집이 존재하지 않음"));
         WorkBookPDF pdf=workbookPdfRepository.findByWorkBook(workBook);
@@ -83,7 +83,7 @@ public class PdfService {
 
     //실제 데이터를 pc에 저장한뒤 경로정보를 저장.
     @Transactional
-    public AnswerPDF answersavedata2(MultipartFile file, int wb_id,int user_id) throws IOException {
+    public AnswerPDF answersavedata2(MultipartFile file, int wb_id) throws IOException {
 
         WorkBook workBook = workbookRepository.findByuserId(wb_id).orElseThrow(() -> new RuntimeException("문제집이 존재하지 않음"));
 

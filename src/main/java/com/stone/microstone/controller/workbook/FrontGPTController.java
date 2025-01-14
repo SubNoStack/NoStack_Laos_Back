@@ -75,10 +75,10 @@ public class FrontGPTController {
     }
 
     @PostMapping("/retext") //생성된 문제를 재생성을 수행하는 api
-    public ResponseEntity<Object> frontretext(@RequestParam Integer userId){
+    public ResponseEntity<Object> frontretext(){
 
         try{ //서비스 수행
-            QuestionAnswerResponse response=chatGPTService.getRetextWorkBook(userId);
+            QuestionAnswerResponse response=chatGPTService.getRetextWorkBook();
             // 결과 반환
             return new ResponseEntity<>(Map.of("message",response), HttpStatus.OK);
             // 결과 반환
@@ -126,10 +126,10 @@ public class FrontGPTController {
     }
 
     @GetMapping("/all") //문제집 전체조회 수행 api
-    public ResponseEntity frontbookall(@RequestParam Integer userId){
+    public ResponseEntity frontbookall(){
 
         try{ //서비스 수행.전체 조회 list
-            List<WorkBookResponse> allbook=workBookService.getAllWorkBook(userId);
+            List<WorkBookResponse> allbook=workBookService.getAllWorkBook();
             if(allbook.isEmpty()){
                 return ResponseEntity.ok(Map.of("data", Collections.emptyList()));
             }
@@ -144,10 +144,10 @@ public class FrontGPTController {
 
 
     @GetMapping("/answer/all") //답지 전체 조회 api
-    public ResponseEntity frontanswer(@RequestParam Integer userId){
+    public ResponseEntity frontanswer(){
 
         try{
-            List<WorkBookAnswerResponse> allbook=workBookService.getAllAnswerWorkBook(userId);
+            List<WorkBookAnswerResponse> allbook=workBookService.getAllAnswerWorkBook();
             if(allbook.isEmpty()){
                 return ResponseEntity.ok(Map.of("data", Collections.emptyList()));
             }
@@ -161,10 +161,10 @@ public class FrontGPTController {
 
 
     @PatchMapping("/title") //문제집 제목 변경 api
-    public ResponseEntity frontsettingtitle(@RequestParam Integer wb_id,@RequestParam String title,@RequestParam Integer userId){
+    public ResponseEntity frontsettingtitle(@RequestParam Integer wb_id,@RequestParam String title){
 
         try{
-            WorkBook workBook=workBookService.findSearchAndtitle(wb_id,userId,title);
+            WorkBook workBook=workBookService.findSearchAndtitle(wb_id,title);
             return ResponseEntity.ok(Map.of("message","제목변경 완료",
                     "wb_id",workBook.getWb_id(),"wb_title",workBook.getWb_title()));
         }catch(Exception e){
@@ -174,10 +174,10 @@ public class FrontGPTController {
     }
 
     @PatchMapping("/answer/title") //답지 제목 변경 api
-    public ResponseEntity frontsettinganswertitle(@RequestParam Integer wb_id,@RequestParam String title,@RequestParam Integer userId){
+    public ResponseEntity frontsettinganswertitle(@RequestParam Integer wb_id,@RequestParam String title){
 
         try{
-            WorkBook workBook=workBookService.findSearchAndanswertitle(wb_id,userId,title);
+            WorkBook workBook=workBookService.findSearchAndanswertitle(wb_id,title);
             return ResponseEntity.ok(Map.of("message","제목변경 완료",
                     "wb_id",workBook.getWb_id(),"wb_title",workBook.getWb_title_answer()));
         }catch(Exception e){
@@ -188,10 +188,10 @@ public class FrontGPTController {
 
 
     @PostMapping("/upload")  //생성된 문제집의 pdf를 저장하는 api
-    public ResponseEntity frontuploadWorkbook(@RequestParam Integer wb_id, @RequestParam("file")MultipartFile file,@RequestParam Integer userId){
+    public ResponseEntity frontuploadWorkbook(@RequestParam Integer wb_id, @RequestParam("file")MultipartFile file){
 
         try{
-            pdfService.savedata2(file,wb_id,userId);
+            pdfService.savedata2(file,wb_id);
             return ResponseEntity.ok(Map.of("message","저장완료"));
         }catch (Exception e){
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -201,10 +201,10 @@ public class FrontGPTController {
     }
 
     @PostMapping("/answer/upload") //생성된 답지의 pdf 저장 api
-    public ResponseEntity frontuploadanswer(@RequestParam Integer wb_id, @RequestParam("file")MultipartFile file,@RequestParam Integer userId){
+    public ResponseEntity frontuploadanswer(@RequestParam Integer wb_id, @RequestParam("file")MultipartFile file){
 
         try{
-            pdfService.answersavedata2(file,wb_id,userId);
+            pdfService.answersavedata2(file,wb_id);
             return ResponseEntity.ok(Map.of("message","저장완료"));
         }catch (Exception e){
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -217,10 +217,10 @@ public class FrontGPTController {
 
 
     @DeleteMapping("/delete") //문제집 삭제.답지도 함께 삭제됨.
-    public ResponseEntity frontworkbookdelete(@RequestParam Integer wb_id,@RequestParam Integer userId){
+    public ResponseEntity frontworkbookdelete(@RequestParam Integer wb_id){
 
         try{
-            workBookService.deleteSearch(wb_id,userId);
+            workBookService.deleteSearch(wb_id);
             return ResponseEntity.ok(Map.of("message","삭제완료"));
         }catch(Exception e){
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -229,10 +229,10 @@ public class FrontGPTController {
     }
 
     @GetMapping("/download/{wb_id}") //클라이언트에게 저장한 문제집 pdf파일을 전송하는 api
-    public ResponseEntity frontdownloadFile(@PathVariable Integer wb_id,@RequestParam Integer userId) {
+    public ResponseEntity frontdownloadFile(@PathVariable Integer wb_id) {
 
         try{
-            Resource resource = workBookService.getResourcework(wb_id,userId);
+            Resource resource = workBookService.getResourcework(wb_id);
             if (!resource.exists()) {
                 throw new FileNotFoundException("파일을 찾을수 없음: ");
             }
@@ -248,9 +248,9 @@ public class FrontGPTController {
     }
 
     @GetMapping("/answer/download/{wb_id}") //클라이언트에게 저장한 답지 pdf파일을 전송하는 api
-    public ResponseEntity frontdownloadFilean(@PathVariable Integer wb_id,@RequestParam Integer userId) {
+    public ResponseEntity frontdownloadFilean(@PathVariable Integer wb_id) {
         try{
-            Resource resource = workBookService.getResourceanswer(wb_id,userId);
+            Resource resource = workBookService.getResourceanswer(wb_id);
             if (!resource.exists()) {
                 throw new FileNotFoundException("파일을 찾을수 없음: ");
             }
