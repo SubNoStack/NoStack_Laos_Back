@@ -219,6 +219,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
     @Override
     public Map<String, Object> regenerateQuestion(String summarizedText, String contextText) {
+
         // 생성된 문제들을 기반으로 새로운 문제를 생성하는 메소드
         ChatCompletionDto chatCompletionDto = ChatCompletionDto.builder()
                 .model("gpt-4o-mini")
@@ -228,7 +229,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
                                 "[Previous Questions] " + contextText + "[Summarized Text]" + summarizedText)
                         .build()))
                 .build();
-        log.debug("재생성 문제 정보={}", chatCompletionDto.toString());
+        log.info("재생성 문제 정보={}", chatCompletionDto.toString());
         return executePrompt(chatCompletionDto);
     }
 
@@ -322,7 +323,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         // 마지막 문제집을 가져옵니다.
         Optional<WorkBook> newwork = workBookRepository.findLastWorkBook();
         WorkBook lastWorkBook = newwork.orElseThrow(() -> new RuntimeException("기존 문제집이 존재하지 않음. User ID: "));
-        log.info(lastWorkBook.getWb_sumtext());
+        log.info(lastWorkBook.getWb_sumtext()+"\\n"+lastWorkBook.getWb_content());
 
         // 새로운 문제를 생성합니다.
         //문제.카테고리별 생성하면 sumtext가 없어서 재생성시 오류가 발생.이거 고쳐주세요.이거안하면 큰일납니다.
@@ -333,9 +334,9 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         // 이미지 질문과 텍스트 질문을 받아옵니다.
         List<Map<String, String>> imageQuestions = (List<Map<String, String>>) questionResult.get("imageQuestions");
         String textQuestions = (String) questionResult.get("textQuestions");
-
         // 생성된 질문에 대한 답변을 생성합니다.
         Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions);
+
         String answerText = (String) answerResult.get("content");
         if (answerText == null || answerText.trim().isEmpty()) {
             throw new RuntimeException("생성된 답변이 없습니다.");
