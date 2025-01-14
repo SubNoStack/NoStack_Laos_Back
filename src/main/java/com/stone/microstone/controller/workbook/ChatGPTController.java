@@ -3,6 +3,7 @@ package com.stone.microstone.controller.workbook;
 import com.stone.microstone.domain.entitiy.WorkBook;
 
 import com.stone.microstone.dto.workbook.ErrorResponse;
+import com.stone.microstone.dto.workbook.RequestBodys;
 import com.stone.microstone.dto.workbook.WorkBookAnswerResponse;
 import com.stone.microstone.dto.workbook.WorkBookResponse;
 
@@ -67,11 +68,10 @@ public class ChatGPTController {
     @ApiResponse(responseCode = "500",description = "서버오류",
     content = {@Content(schema = @Schema(implementation = ErrorResponse.class))})
     public ResponseEntity<Map<String, Object>> processText(
-            @Parameter(name="problemText",description = "문제 생성할 내용.")
-            @RequestBody @Valid String problemText) {
+            @RequestBody @Valid RequestBodys Text) {
 
         try { //전달받은 문제 텍스트 처리하여 서비스 수행
-            QuestionAnswerResponse response = chatGPTService.processText(problemText);
+            QuestionAnswerResponse response = chatGPTService.processText(Text.getProblemText());
             return new ResponseEntity<>(Map.of("message", response), HttpStatus.OK);
         } catch (IllegalArgumentException e) {
             log.error("입력 오류", e.getMessage());
