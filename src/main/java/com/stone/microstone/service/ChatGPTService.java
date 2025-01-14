@@ -13,7 +13,7 @@ public interface ChatGPTService {
     Map<String,Object> regenerateQuestion(String summarizedText,String contextText);
     Map<String, Object> generateAnswer(List<Map<String, String>> imageQuestions, String textQuestions);
 
-    QuestionAnswerResponse processText(String problemText) throws IOException;
+    QuestionAnswerResponse processText(String problemText,String language) throws IOException;
 
     @Transactional
     QuestionAnswerResponse getRetextWorkBook();

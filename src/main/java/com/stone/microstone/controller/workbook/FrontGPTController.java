@@ -43,11 +43,11 @@ public class FrontGPTController {
 
     }
     @PostMapping("/processText")
-    public ResponseEntity<Map<String, Object>> frontprocessText(@RequestBody String problemText) {
+    public ResponseEntity<Map<String, Object>> frontprocessText(@RequestBody String problemText,@RequestParam String language) {
         log.debug("받은 문제 텍스트: " + problemText);
 
         try {
-            QuestionAnswerResponse response = chatGPTService.processText(problemText);
+            QuestionAnswerResponse response = chatGPTService.processText(problemText,language);
             List<Map<String, String>> imageQuestions = (List<Map<String, String>>) response.getImageQuestions();
             String textQuestions = response.getTextQuestions();
 

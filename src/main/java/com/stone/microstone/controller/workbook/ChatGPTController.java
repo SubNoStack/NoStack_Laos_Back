@@ -47,16 +47,13 @@ public class ChatGPTController {
     private final WorkBookService workBookService;
     private final PdfService pdfService;
     private final WorkBookRepository workBookRepository;
-    private final HttpSession httpSession;
 
     public ChatGPTController(ChatGPTService chatGPTService, WorkBookService workBookService,
-                             PdfService pdfService,WorkBookRepository workBookRepository,
-                             HttpSession httpSession) {
+                             PdfService pdfService,WorkBookRepository workBookRepository) {
         this.chatGPTService = chatGPTService;
         this.workBookService = workBookService;
         this.pdfService = pdfService;
         this.workBookRepository = workBookRepository;
-        this.httpSession = httpSession;
     }
 
     @PostMapping("/processText") //사용자가 보낸 문제 텍스트를 처리하는 api
@@ -68,10 +65,12 @@ public class ChatGPTController {
     @ApiResponse(responseCode = "500",description = "서버오류",
     content = {@Content(schema = @Schema(implementation = ErrorResponse.class))})
     public ResponseEntity<Map<String, Object>> processText(
+            @Parameter(name="paramValue",description = "어느나라 언어로 생성할건지 작성ex)en,ko,laos",example="ko",required = true)
+            @RequestParam String language,
             @RequestBody @Valid RequestBodys Text) {
 
         try { //전달받은 문제 텍스트 처리하여 서비스 수행
-            QuestionAnswerResponse response = chatGPTService.processText(Text.getProblemText());
+            QuestionAnswerResponse response = chatGPTService.processText(Text.getProblemText(),language);
             return new ResponseEntity<>(Map.of("message", response), HttpStatus.OK);
         } catch (IllegalArgumentException e) {
             log.error("입력 오류", e.getMessage());

@@ -1,5 +1,6 @@
 package com.stone.microstone.service.chatgpt;
 
+import com.stone.microstone.domain.entitiy.Question;
 import com.stone.microstone.domain.entitiy.WorkBook;
 import com.stone.microstone.config.ChatGPTConfig;
 import com.stone.microstone.dto.chatgpt.ChatCompletionDto;
@@ -11,6 +12,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stone.microstone.repository.workbook.WorkBookRepository;
+import com.stone.microstone.service.awss3.AwsS3Service;
 import com.stone.microstone.service.workbook.WorkBookService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,13 +33,16 @@ public class ChatGPTServiceImpl implements ChatGPTService {
     private final ChatGPTConfig chatGPTConfig;
     private final WorkBookService workBookService;
     private final WorkBookRepository workBookRepository;
+    private final AwsS3Service awsS3Service;
 
     public ChatGPTServiceImpl(ChatGPTConfig chatGPTConfig,
                               WorkBookService workBookService,
-                              WorkBookRepository workBookRepository) {
+                              WorkBookRepository workBookRepository,
+                              AwsS3Service awsS3Service) {
         this.chatGPTConfig = chatGPTConfig;
         this.workBookService = workBookService;
         this.workBookRepository = workBookRepository;
+        this.awsS3Service = awsS3Service;
     }
 
     @Value("${app.test-mode}")
@@ -280,7 +285,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
 
     @Override
-    public QuestionAnswerResponse processText(String problemText) throws IOException {
+    public QuestionAnswerResponse processText(String problemText,String language) throws IOException {
         log.debug("받은 문제 텍스트: " + problemText);
         // 문제 텍스트를 처리하여 요약, 문제생성, 답변 생성 3단계를 수행
         // 1단계: 문제 텍스트 요약
@@ -304,8 +309,9 @@ public class ChatGPTServiceImpl implements ChatGPTService {
             throw new IllegalArgumentException("생성된 답변이 없습니다.");
         }
         log.debug("생성된 답변: " + answerText);
+        List<Question> q=awsS3Service.uploadfile(imageQuestions);
 
-        return workBookService.getWorkBook(textQuestions, summarizedText, answerText, imageQuestions);
+        return workBookService.getWorkBook(textQuestions, summarizedText, answerText, imageQuestions,q);
     }
 
     @Transactional

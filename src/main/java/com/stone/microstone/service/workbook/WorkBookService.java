@@ -1,12 +1,15 @@
 package com.stone.microstone.service.workbook;
 
+import com.stone.microstone.domain.entitiy.Question;
 import com.stone.microstone.domain.entitiy.WorkBook;
 import com.stone.microstone.domain.entitiy.AnswerPDF;
 import com.stone.microstone.domain.entitiy.WorkBookPDF;
 import com.stone.microstone.dto.workbook.*;
 import com.stone.microstone.dto.chatgpt.QuestionAnswerResponse;
 import com.stone.microstone.repository.workbook.WorkBookRepository;
+import com.stone.microstone.repository.workbook.question.QuestionRepository;
 import com.stone.microstone.service.workbook.pdf.PdfService;
+import com.stone.microstone.service.workbook.question.QuestionService;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.core.io.Resource;
@@ -32,28 +35,31 @@ import java.util.stream.Collectors;
 public class WorkBookService {
     private final WorkBookRepository workBookRepository;
     private final PdfService pdfService;
+    private final QuestionService questionService;
 
 
     public WorkBookService(WorkBookRepository workBookRepository,
-                           PdfService pdfService) {
+                           PdfService pdfService,QuestionService questionService) {
         this.workBookRepository = workBookRepository;
         this.pdfService=pdfService;
+        this.questionService=questionService;
 
 
     }
 
     //기존의 저장된 문제집을 찾고,문제집 pdf 테이블을 생성한뒤.json 응답을위한 dto 생성후 반환
     @Transactional
-    public QuestionAnswerResponse getWorkBook(String Question, String summ, String answer, List<Map<String, String>> imageQuestions) throws IOException {
+    public QuestionAnswerResponse getWorkBook(String Question, String summ, String answer, List<Map<String, String>> imageQuestions, List<Question> questions) throws IOException {
         if (answer == null || answer.trim().isEmpty()) {
             log.error("생성된 답변이 없습니다.");
             throw new RuntimeException("생성된 답변이 존재하지 않습니다.");
         }
         WorkBook saveWorkBook = findAndsaveWorkBook(Question, summ, answer);
 
-        // pdf테이블들 생성
+        // pdf테이블들 생성,question담기.
         pdfService.save(saveWorkBook.getWb_id());
         pdfService.answersave(saveWorkBook.getWb_id());
+        questionService.save(saveWorkBook.getWb_id(),questions);
 
         // 이미지질문과 텍스트질문을 분리
         String textQuestions = Question;
