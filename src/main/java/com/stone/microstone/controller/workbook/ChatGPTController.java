@@ -53,11 +53,6 @@ public class ChatGPTController {
 
     @PostMapping("/processText") //사용자가 보낸 문제 텍스트를 처리하는 api
     public ResponseEntity<Map<String, Object>> processText(@RequestBody String problemText) {
-        Integer userId = (Integer) httpSession.getAttribute("userId");
-        if (userId == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "세션이 만료되었으니 다시 사용해주세요"));
-        }
 
         try { //전달받은 문제 텍스트 처리하여 서비스 수행
             QuestionAnswerResponse response = chatGPTService.processText(problemText);
@@ -77,15 +72,10 @@ public class ChatGPTController {
 
     @PostMapping("/retext") //생성된 문제를 재생성을 수행하는 api
     public ResponseEntity<Object> retext(){
-//        Integer userId = 8;
-        Integer userId=(Integer)httpSession.getAttribute("userId");
-        if(userId==null){  //세션의 id가 없을시
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error","세션이 만료되었으니 다시 사용해주세요"));
-        }
+
         try{
             //서비스 수행
-            QuestionAnswerResponse response=chatGPTService.getRetextWorkBook(userId);
+            QuestionAnswerResponse response=chatGPTService.getRetextWorkBook();
             // 결과 반환
             return new ResponseEntity<>(Map.of("message",response), HttpStatus.OK);
             // 결과 반환
@@ -100,15 +90,9 @@ public class ChatGPTController {
 
     @GetMapping("/all")  //문제집 전체조회 수행 api
     public ResponseEntity bookall(){
-//        Integer userId = 7;
-        Integer userId=(Integer)httpSession.getAttribute("userId");
-        if(userId==null){
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error","세션이 만료되었으니 다시 사용해주세요"));
-        }
         try{
             //서비스 수행.전체 조회닌 list
-            List<WorkBookResponse> allbook=workBookService.getAllWorkBook(userId);
+            List<WorkBookResponse> allbook=workBookService.getAllWorkBook();
             if(allbook.isEmpty()){
                 return ResponseEntity.ok(Map.of("data", Collections.emptyList()));
             }
@@ -126,14 +110,9 @@ public class ChatGPTController {
 
     @GetMapping("/answer/all") //답지 전체 조회 api
     public ResponseEntity answer(){
-//        Integer userId = 7;
-        Integer userId=(Integer)httpSession.getAttribute("userId");
-        if(userId==null){
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error","세션이 만료되었으니 다시 사용해주세요"));
-        }
+
         try{
-            List<WorkBookAnswerResponse> allbook=workBookService.getAllAnswerWorkBook(userId);
+            List<WorkBookAnswerResponse> allbook=workBookService.getAllAnswerWorkBook();
             if(allbook.isEmpty()){
                 return ResponseEntity.ok(Map.of("data", Collections.emptyList()));
             }
@@ -148,13 +127,9 @@ public class ChatGPTController {
 
     @PatchMapping("/title") //문제집 제목 변경 api
     public ResponseEntity settingtitle(@RequestParam Integer wb_id,@RequestParam String title){  //생성된 문제 id와 변경할 제목 작성.
-        Integer userId=(Integer)httpSession.getAttribute("userId");
-        if(userId==null){
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error","세션이 만료되었으니 다시 사용해주세요"));
-        }
+
         try{
-            WorkBook workBook=workBookService.findSearchAndtitle(wb_id,userId,title);
+            WorkBook workBook=workBookService.findSearchAndtitle(wb_id,title);
             return ResponseEntity.ok(Map.of("message","제목변경 완료",
                     "wb_id",workBook.getWb_id(),"wb_title",workBook.getWb_title()));
         }catch(Exception e){
@@ -165,13 +140,9 @@ public class ChatGPTController {
 
     @PatchMapping("/answer/title") //답지 제목 변경 api
     public ResponseEntity settinganswertitle(@RequestParam Integer wb_id,@RequestParam String title){ //생성된 답지 id와 변경할 제목 작성.
-        Integer userId=(Integer)httpSession.getAttribute("userId");
-        if(userId==null){
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error","세션이 만료되었으니 다시 사용해주세요"));
-        }
+
         try{
-            WorkBook workBook=workBookService.findSearchAndanswertitle(wb_id,userId,title);
+            WorkBook workBook=workBookService.findSearchAndanswertitle(wb_id,title);
             return ResponseEntity.ok(Map.of("message","제목변경 완료",
                     "wb_id",workBook.getWb_id(),"wb_title",workBook.getWb_title_answer()));
         }catch(Exception e){
@@ -183,15 +154,9 @@ public class ChatGPTController {
 
     @PostMapping("/upload")  //생성된 문제집의 pdf를 저장하는 api 
     public ResponseEntity uploadWorkbook(@RequestParam Integer wb_id, @RequestParam("file")MultipartFile file){ //생성된 문제 id와 pdf파일.
-//        Integer userId=6;
-        Integer userId=(Integer)httpSession.getAttribute("userId");
-        if(userId==null){
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error","세션이 만료되었으니 다시 사용해주세요"));
-        }
         try{
             //pdf만 저장하니 서비스만 수행
-            pdfService.savedata2(file,wb_id,userId);
+            pdfService.savedata2(file,wb_id);
             return ResponseEntity.ok(Map.of("message","저장완료"));
         }catch (Exception e){
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -202,14 +167,10 @@ public class ChatGPTController {
 
     @PostMapping("/answer/upload") //생성된 답지의 pdf 저장 api
     public ResponseEntity uploadanswer(@RequestParam Integer wb_id, @RequestParam("file")MultipartFile file){//생성된 답지 id와 pdf파일.
-        Integer userId=(Integer)httpSession.getAttribute("userId");
-        if(userId==null){
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error","세션이 만료되었으니 다시 사용해주세요"));
-        }
+
         try{
             //pdf만 저장하니 서비스만 수행
-            pdfService.answersavedata2(file,wb_id,userId);
+            pdfService.answersavedata2(file,wb_id);
             return ResponseEntity.ok(Map.of("message","저장완료"));
         }catch (Exception e){
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -220,14 +181,9 @@ public class ChatGPTController {
 
     @DeleteMapping("/delete") //문제집 삭제.답지도 함께 삭제됨.
     public ResponseEntity workbookdelete(@RequestParam Integer wb_id){ //삭제할 문제 id
-//        Integer userId=5;
-        Integer userId=(Integer)httpSession.getAttribute("userId");
-        if(userId==null){
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error","세션이 만료되었으니 다시 사용해주세요"));
-        }
+
         try{
-            workBookService.deleteSearch(wb_id,userId);
+            workBookService.deleteSearch(wb_id);
             return ResponseEntity.ok(Map.of("message","삭제완료"));
         }catch(Exception e){
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -237,14 +193,9 @@ public class ChatGPTController {
 
     @GetMapping("/download/{wb_id}") //클라이언트에게 저장한 문제집 pdf파일을 전송하는 api
     public ResponseEntity downloadFile(@PathVariable Integer wb_id) { //요청할 문제 id
-//        Integer userId=6;
-        Integer userId=(Integer)httpSession.getAttribute("userId");
-        if(userId==null){
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error","세션이 만료되었으니 다시 사용해주세요"));
-        }
+
         try{
-            Resource resource = workBookService.getResourcework(wb_id,userId);
+            Resource resource = workBookService.getResourcework(wb_id);
             if (!resource.exists()) {
                 throw new FileNotFoundException("파일을 찾을수 없음: ");
             }
@@ -261,13 +212,9 @@ public class ChatGPTController {
 
     @GetMapping("/answer/download/{wb_id}") //클라이언트에게 저장한 답지 pdf파일을 전송하는 api
     public ResponseEntity downloadFilean(@PathVariable Integer wb_id) {//요청할 답지 id
-        Integer userId=(Integer)httpSession.getAttribute("userId");
-        if(userId==null){
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error","세션이 만료되었으니 다시 사용해주세요"));
-        }
+
         try{
-            Resource resource = workBookService.getResourceanswer(wb_id,userId);
+            Resource resource = workBookService.getResourceanswer(wb_id);
             if (!resource.exists()) {
                 throw new FileNotFoundException("파일을 찾을수 없음: ");
             }

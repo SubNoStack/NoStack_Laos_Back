@@ -82,7 +82,7 @@ public class WorkBookService {
     }
     //재생성시 마지막에 저장한 문제집을 찾고 다시 문제집을 갱신하는 메소드.
     @Transactional
-    public WorkBook findLastWorkBook(String content, String answer,int user_id) {
+    public WorkBook findLastWorkBook(String content, String answer) {
         //유저를 찾고
         //마지막에 생성한 문제집 찾는다.
         Optional<WorkBook> newwork = workBookRepository.findLastWorkBook();
@@ -121,7 +121,7 @@ public class WorkBookService {
 
     //문제집을 찾는것을 수행하는 메소드.
     @Transactional
-    public WorkBook findSearch(int wb_id,int user_id){  //문제찾기
+    public WorkBook findSearch(int wb_id){  //문제찾기
 
         //유저정보와 문제id를 통해 문제집 가져오기.
         Optional<WorkBook> newwork = workBookRepository.findByuserId(wb_id);
@@ -132,7 +132,7 @@ public class WorkBookService {
 
     //문제집을 찾은뒤 삭제를 수행하는 메소드
     @Transactional
-    public void deleteSearch(int wb_id,int user_id) throws IOException {  //문제찾기
+    public void deleteSearch(int wb_id) throws IOException {  //문제찾기
 
         //문제집 찾기.
         Optional<WorkBook> workBook = workBookRepository.findByuserId(wb_id);
@@ -154,7 +154,7 @@ public class WorkBookService {
 
     //제목 변경을 하기위해 문제집을 찾는것을 수행하는 메솓,
     @Transactional
-    public WorkBook findSearchAndtitle(int wb_id,int user_id,String title){  //문제찾기
+    public WorkBook findSearchAndtitle(int wb_id,String title){  //문제찾기
         //문제집 찾기.
         Optional<WorkBook> newwork = workBookRepository.findByuserId(wb_id);
         WorkBook faworkBook=newwork.orElseThrow(()->new RuntimeException("문제를 찾을 수 없음. ID: "+wb_id));
@@ -165,7 +165,7 @@ public class WorkBookService {
 
     //답지를 찾은뒤 제목 변경을 수행.
     @Transactional
-    public WorkBook findSearchAndanswertitle(int wb_id,int user_id,String title){  //문제찾기
+    public WorkBook findSearchAndanswertitle(int wb_id,String title){  //문제찾기
 
         Optional<WorkBook> newwork = workBookRepository.findByuserId(wb_id);
         WorkBook faworkBook=newwork.orElseThrow(()->new RuntimeException("문제를 찾을 수 없음. ID: "+wb_id));
@@ -184,15 +184,15 @@ public class WorkBookService {
 
     //문제집 pdf경로가 존재하는것만 문제집정보를 반환
     @Transactional
-    public List<WorkBook> findWorkBookallWithpath(int user_id){ //전체 문제찾기 근데 path 없으면 조회x
+    public List<WorkBook> findWorkBookallWithpath(){ //전체 문제찾기 근데 path 없으면 조회x
         List<WorkBook> newwork = workBookRepository.findByUserAndpdf();
         return newwork;
     }
 
     //유저가 생성한 문제집 정보를 전부 찾아 리스트로 반환하는 메소드,
     @Transactional
-    public List<WorkBookResponse> getAllWorkBook(Integer user_id){  /*user_id로 해당 문제들 찾고 그것을 dto로 변환후 반환.*/
-        List<WorkBook> worklist=findWorkBookallWithpath(user_id);
+    public List<WorkBookResponse> getAllWorkBook(){  /*user_id로 해당 문제들 찾고 그것을 dto로 변환후 반환.*/
+        List<WorkBook> worklist=findWorkBookallWithpath();
         List<Map<String, Object>> pdfbook=pdfService.getPdfsForWorkbook(worklist);
         return worklist.stream()
                 .map(book -> convertDTO(book,pdfbook))
@@ -201,7 +201,7 @@ public class WorkBookService {
 
     //답지의 pdf경로가 존재하는것만 찾아 문제집 정보를 반환
     @Transactional
-    public List<WorkBook> findAnswerallWithpath(int user_id){ //전체 문제찾기 근데 path 없으면 조회x
+    public List<WorkBook> findAnswerallWithpath(){ //전체 문제찾기 근데 path 없으면 조회x
         List<WorkBook> newwork = workBookRepository.findByUserAndAnsPdf();
         return newwork;
     }
@@ -209,8 +209,8 @@ public class WorkBookService {
 
     //답지를 전부 찾은뒤 리스트형태로 컨트롤러에 반환을 수행.
     @Transactional
-    public List<WorkBookAnswerResponse> getAllAnswerWorkBook(int user_id){
-        List<WorkBook> worklist=findAnswerallWithpath(user_id);
+    public List<WorkBookAnswerResponse> getAllAnswerWorkBook(){
+        List<WorkBook> worklist=findAnswerallWithpath();
         List<Map<String, Object>> pdfbook=pdfService.getPdfsForanswer(worklist);
         return worklist.stream()
                 .map(book -> convertAnswerDTO(book,pdfbook))
@@ -268,9 +268,9 @@ public class WorkBookService {
 
     //문제집을 찾은뒤 pdf경로를 가져오는 동작을 수행하는 메소드
     @Transactional
-    public Resource getResourcework(int wb_id,int userid) throws MalformedURLException {
+    public Resource getResourcework(int wb_id) throws MalformedURLException {
         //문제집을 찾은뒤
-        WorkBook workBook=findSearch(wb_id,userid);
+        WorkBook workBook=findSearch(wb_id);
         WorkBookPDF workBookPDF=pdfService.findByworkBook(workBook);
         //저장한 pdf 경로 가져오기.
         String pdfPath=workBookPDF.getPdf_path();
@@ -280,8 +280,8 @@ public class WorkBookService {
 
     //답지를 찾은뒤 pdf경로를 가져오기.
     @Transactional
-    public Resource getResourceanswer(int wb_id,int userid) throws MalformedURLException {
-        WorkBook workBook=findSearch(wb_id,userid);
+    public Resource getResourceanswer(int wb_id) throws MalformedURLException {
+        WorkBook workBook=findSearch(wb_id);
         AnswerPDF answerPDF=pdfService.anfindByworkBook(workBook);
         String pdfPath=answerPDF.getPdf_path();
         Path filePath= Paths.get(pdfPath).normalize();
