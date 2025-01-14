@@ -91,7 +91,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         List<Map<String, String>> imageQuestions = new ArrayList<>();
         for (int i = 1; i <= 5; i++) {
             String questionPrompt = "Using the summarized text, create one 4-option multiple-choice question without an introduction. Use a formal tone akin to Korean college entrance exam questions." +
-                    " Label the choices as ①, ②, ③, and ④, but do not include the correct answer. If '*' is needed, use it sparingly and avoid emphasizing content with it. " + summarizedText;
+                    " Label the choices as ①, ②, ③, and ④, but do not include the correct answer. If '*' is needed, use it sparingly and avoid emphasizing content with it. " + summarizedText + "Create a minimalist, flat design. Avoid any modern technology or futuristic elements in the image. Please generate an image without any language included in it";
 
             ChatCompletionDto questionCompletion = ChatCompletionDto.builder()
                     .model("gpt-4o-mini")
@@ -139,7 +139,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
                 .messages(List.of(ChatRequestMsgDto.builder()
                         .role("user")
                         .content("Using the summarized text, generate 10 multiple-choice questions numbered 6 through 15. Exclude any introductory text. Use a formal tone in line with Korean college entrance exam style." +
-                                " Label the options as ①, ②, ③, and ④, ensuring no answers are provided. If '*' is necessary, use it minimally and not for emphasis. " + summarizedText)
+                                " Label the options as ①, ②, ③, and ④, ensuring no answers are provided. If '*' is necessary, use it minimally and not for emphasis. " + summarizedText )
                         .build()))
                 .build();
         log.debug("문제 생성 정보={}", textCompletion.toString());
@@ -189,7 +189,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
                 .model("gpt-4o-mini")
                 .messages(List.of(ChatRequestMsgDto.builder()
                         .role("user")
-                        .content("Provide the exact answers to the generated questions (1–15) along with detailed explanations limited to four lines each. If '*' is required, use it sparingly and avoid using it for emphasis. " + combinedQuestions)
+                        .content("Provide the exact answers to the generated questions (1–15) along with detailed explanations limited to four lines each. If a special character is needed, use it sparingly and avoid using it for emphasis. Do not include any special characters such as asterisks (*) in the answers or explanations " + combinedQuestions)
                         .build()))
                 .build();
         log.debug("답변 생성 정보={}", chatCompletionDto.toString());
@@ -335,5 +335,91 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         WorkBook saveWorkBook = workBookService.findLastWorkBook(newQuestion, answerText, userId);
 
         return new QuestionAnswerResponse(saveWorkBook.getWb_id(), saveWorkBook.getWb_title(), newQuestion, answerText, imageQuestions, textQuestions);
+    }
+
+
+
+    @Override
+    public QuestionAnswerResponse generateCategoryQuestions(String category) {
+        log.debug("카테고리 문제 생성 시작: " + category);
+
+        String prompt;
+        switch (category.toLowerCase()) {
+            case "conversation":
+                prompt = "Create multiple-choice questions related to common Korean conversations in daily life. Ensure the questions reflect realistic scenarios such as greetings, ordering food, asking for directions, or small talk. ";
+                break;
+            case "object":
+                prompt = "Generate multiple-choice questions about popular Korean objects or artifacts that foreign learners might encounter in everyday life. Focus on both traditional items such as hanbok, Korean ceramics, and cultural symbols, as well as common items found in daily life like clothes, beds, computers, desks, and other household objects. Ensure the questions are relevant to typical experiences and accessible to learners.";
+                break;
+            case "food":
+                prompt = "Create multiple-choice quiz questions about Korean food culture, including common dishes, eating etiquette, and regional specialties. Ensure the questions are based on typical experiences, such as dining at a Korean restaurant or cooking traditional dishes. ";
+                break;
+            case "culture":
+                prompt = "Generate multiple-choice questions about Korean culture, including popular traditions, festivals, and modern practices that are commonly experienced in everyday life. The questions should focus on the most accessible cultural elements like Chuseok, Lunar New Year, or Korean pop culture.";
+                break;
+            default:
+                throw new IllegalArgumentException("Invalid category: " + category);
+        }
+        // 이미지 문제 생성
+        List<Map<String, String>> imageQuestions = generateImageQuestionsByCategory(prompt);
+
+        // 텍스트 문제 생성
+        String textQuestions = generateTextQuestionsByCategory(prompt);
+
+        // QuestionAnswerResponse 객체 반환
+        QuestionAnswerResponse response = new QuestionAnswerResponse();
+        response.setImageQuestions(imageQuestions);
+        response.setTextQuestions(textQuestions);
+
+        return response;
+    }
+
+
+    private List<Map<String, String>> generateImageQuestionsByCategory(String categoryPrompt) {
+        List<Map<String, String>> imageQuestions = new ArrayList<>();
+        for (int i = 1; i <= 5; i++) {
+            String questionPrompt =
+                    "Please create the multiple-choice questions and answers in Korean. Using the summarized text, create one 4-option multiple-choice question without an introduction. Use a formal tone akin to Korean college entrance exam questions." +
+                    "Label the choices as ①, ②, ③, and ④, but do not include the correct answer. If '*' is needed, use it sparingly and avoid emphasizing content with it." + categoryPrompt + "Create a minimalist, flat design. Avoid any modern technology or futuristic elements in the image. Please generate an image without any language included in it";
+
+            ChatCompletionDto questionCompletion = ChatCompletionDto.builder()
+                    .model("gpt-4o-mini")
+                    .messages(List.of(ChatRequestMsgDto.builder()
+                            .role("user")
+                            .content(questionPrompt)
+                            .build()))
+                    .build();
+
+            Map<String, Object> questionResponse = executePrompt(questionCompletion);
+            String questionText = (String) questionResponse.get("content");
+
+            questionText = cleanQuestionText(questionText, i);
+
+            String imageUrl = generateImage(questionText);
+
+            Map<String, String> questionWithImage = new HashMap<>();
+            questionWithImage.put("question", questionText);
+            questionWithImage.put("imageUrl", imageUrl);
+
+            imageQuestions.add(questionWithImage);
+        }
+        return imageQuestions;
+    }
+
+    private String generateTextQuestionsByCategory(String categoryPrompt) {
+        String questionPrompt =
+                "Please create the multiple-choice questions and answers in Korean. Using the summarized text, generate 10 multiple-choice questions numbered 6 through 15. Exclude any introductory text. Use a formal tone in line with Korean college entrance exam style." +
+                " Label the options as ①, ②, ③, and ④, ensuring no answers are provided. If '*' is necessary, use it minimally and not for emphasis. " + categoryPrompt;
+
+        ChatCompletionDto textCompletion = ChatCompletionDto.builder()
+                .model("gpt-4o-mini")
+                .messages(List.of(ChatRequestMsgDto.builder()
+                        .role("user")
+                        .content(questionPrompt)
+                        .build()))
+                .build();
+
+        Map<String, Object> textQuestionsResponse = executePrompt(textCompletion);
+        return (String) textQuestionsResponse.get("content");
     }
 }
