@@ -337,8 +337,10 @@ public class ChatGPTServiceImpl implements ChatGPTService {
             throw new RuntimeException("생성된 답변이 없습니다.");
         }
 
+
+
         // 새로운 문제집을 저장합니다.
-        WorkBook saveWorkBook = workBookService.findLastWorkBook(newQuestion, answerText);
+        WorkBook saveWorkBook = workBookService.findLastWorkBook(newQuestion, answerText,imageQuestions,textQuestions);
 
         return new QuestionAnswerResponse(saveWorkBook.getWb_id(), saveWorkBook.getWb_title(), newQuestion, answerText, imageQuestions, textQuestions);
     }

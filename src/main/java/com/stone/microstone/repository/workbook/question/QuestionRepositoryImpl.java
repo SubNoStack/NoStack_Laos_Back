@@ -37,12 +37,22 @@ public class QuestionRepositoryImpl implements QuestionRepository {
                 .getResultList().stream().findFirst();
     }
 
+    //문제집 기반 찾기.
     @Override
-    public List<Question> findAll(WorkBook workBook) {
-        return em.createQuery("SELECT q FROM Question q WHERE q.workBook=:workBook",Question.class)
+    public List<Question> findAllwithWorkBook(WorkBook workBook) {
+        return em.createQuery("SELECT q FROM Question q WHERE q.workBook=:workBook order by pr_wb_id",Question.class)
                 .setParameter("workBook",workBook)
                 .getResultList();
     }
+
+    //전체 문제 조회
+    @Override
+    public List<Question> findAll() {
+        return em.createQuery("SELECT q FROM Question q",Question.class)
+                .getResultList();
+    }
+
+
 
     @Override
     public Optional<Question> findLastQuestion(WorkBook workBook) {

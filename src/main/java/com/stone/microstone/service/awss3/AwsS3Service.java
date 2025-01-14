@@ -122,7 +122,21 @@ public class AwsS3Service {
 
     //파일 삭제.filename은 db에 저장된 이미지 이름으로 삭제하기.
     public void deleteFile(String fileName) {
-        s3Client.deleteObject(new DeleteObjectRequest(bucket, fileName));
-        log.info(bucket);
+        try{
+            s3Client.deleteObject(new DeleteObjectRequest(bucket, fileName));
+            log.info(bucket);
+        }catch (Exception e){
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "S3 이미지 삭제 실패: " + e.getMessage());
+        }
+
+    }
+
+    public List<Question> updateImage(List<Map<String, String>> imageQuestions, List<Question>q) {
+        for(Question question : q) {
+            deleteFile(question.getPr_image_name());
+        }
+
+        List <Question> questions=uploadfile(imageQuestions);
+        return questions;
     }
 }

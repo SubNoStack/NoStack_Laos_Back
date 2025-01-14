@@ -11,8 +11,10 @@ public interface QuestionRepository {
 
         Optional<Question> findById(int id);
 
-        List<Question> findAll(WorkBook workBook);
+        List<Question> findAll();
 
         Optional<Question> findLastQuestion(WorkBook workBook);
+
+        List<Question>findAllwithWorkBook(WorkBook workBook);
 
 }
