@@ -2,6 +2,7 @@ package com.stone.microstone.controller.workbook;
 
 import com.stone.microstone.domain.entitiy.WorkBook;
 
+import com.stone.microstone.dto.workbook.ErrorResponse;
 import com.stone.microstone.dto.workbook.WorkBookAnswerResponse;
 import com.stone.microstone.dto.workbook.WorkBookResponse;
 
@@ -10,7 +11,13 @@ import com.stone.microstone.service.ChatGPTService;
 import com.stone.microstone.repository.workbook.WorkBookRepository;
 import com.stone.microstone.service.workbook.pdf.PdfService;
 import com.stone.microstone.service.workbook.WorkBookService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.servlet.http.HttpSession;
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.core.io.Resource;
@@ -52,7 +59,16 @@ public class ChatGPTController {
     }
 
     @PostMapping("/processText") //사용자가 보낸 문제 텍스트를 처리하는 api
-    public ResponseEntity<Map<String, Object>> processText(@RequestBody String problemText) {
+    @Operation(summary = "사용자가 보낸 문제 텍스트를 처리하는 api",description = "문제를 전송후 생성.")
+    @ApiResponse(responseCode="200",description = "성공",
+    content = {@Content(schema = @Schema(implementation = QuestionAnswerResponse.class))})
+    @ApiResponse(responseCode = "400",description = "잘못된 요청",
+    content = {@Content(schema = @Schema(implementation = ErrorResponse.class))})
+    @ApiResponse(responseCode = "500",description = "서버오류",
+    content = {@Content(schema = @Schema(implementation = ErrorResponse.class))})
+    public ResponseEntity<Map<String, Object>> processText(
+            @Parameter(name="problemText",description = "문제 생성할 내용.")
+            @RequestBody @Valid String problemText) {
 
         try { //전달받은 문제 텍스트 처리하여 서비스 수행
             QuestionAnswerResponse response = chatGPTService.processText(problemText);
