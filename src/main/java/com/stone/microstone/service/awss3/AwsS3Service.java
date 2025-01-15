@@ -58,13 +58,22 @@ public class AwsS3Service {
     //s3에 실제 업로드 하는 서비스
     //byte[] 가 아닌 file을 보내서 처리해도 가능.
     //db에 저장위해 반드시 해당 서비스 사용.
-    public List<Question> uploadfile(List<Map<String, String>> imageQuestions) {
+    public List<Question> uploadfile(List<Map<String, String>> imageQuestions, boolean testMode) {
         List<Question> questions=new ArrayList<>();
         byte[] image;
         String s3name;
         URL url;
         for(Map<String, String> imageQuestion : imageQuestions) {
             image=downloadimage(imageQuestion.get("imageUrl"));
+            String imageUrl = imageQuestion.get("imageUrl");
+            if (testMode) {
+                // 더미 이미지 URL 반환
+                imageUrl = "https://example.com/dummy-image.jpg";
+                log.debug("[테스트 모드] 더미 이미지 URL 반환");
+            }
+
+
+            image = downloadimage(imageUrl);
             s3name=createname();
 
             ObjectMetadata objectMetadata = new ObjectMetadata();
@@ -80,6 +89,7 @@ public class AwsS3Service {
             }
             url = s3Client.getUrl(bucket, s3name);
             log.info("주소는" + url.toString());
+
             //이부분 사용,db 이부분 사용.
             Question question=new Question();
             question.setPr_image_name(s3name);
@@ -92,19 +102,30 @@ public class AwsS3Service {
         return questions;
     }
 
-    public byte[] downloadimage(String image){
-        try{
-            URL url=new URL(image);
-            try(InputStream inputStream = url.openStream();
-                ByteArrayOutputStream outputStream = new ByteArrayOutputStream()
-            ){
-                IOUtils.copy(inputStream,outputStream);
-                return outputStream.toByteArray();
+    public byte[] downloadimage(String imageUrl) {
+        if (imageUrl.equals("https://example.com/dummy-image.jpg")) {
+            // 더미 이미지를 위한 바이트 배열 반환
+            return new byte[0]; // 또는 실제 더미 이미지의 바이트 배열
+        }
+
+        try {
+            // 기존의 이미지 다운로드 로직
+            URL url = new URL(imageUrl);
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            try (InputStream inputStream = url.openStream()) {
+                byte[] chunk = new byte[4096];
+                int bytesRead;
+                while ((bytesRead = inputStream.read(chunk)) > 0) {
+                    outputStream.write(chunk, 0, bytesRead);
+                }
             }
-        }catch(IOException e){
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,"이미지 다운 실패");
+            return outputStream.toByteArray();
+        } catch (IOException e) {
+            log.error("이미지 다운로드 실패: {}", e.getMessage());
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "이미지 다운 실패");
         }
     }
+
 
     //난수 생성.
     public String createname() {
@@ -132,12 +153,12 @@ public class AwsS3Service {
 
     }
 
-    public List<Question> updateImage(List<Map<String, String>> imageQuestions, List<Question>q) {
+    public List<Question> updateImage(List<Map<String, String>> imageQuestions, List<Question>q, boolean testMode) {
         for(Question question : q) {
             deleteFile(question.getPr_image_name());
         }
 
-        List <Question> questions=uploadfile(imageQuestions);
+        List <Question> questions=uploadfile(imageQuestions, testMode);
         return questions;
     }
 }

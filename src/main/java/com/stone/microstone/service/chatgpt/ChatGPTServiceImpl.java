@@ -1,5 +1,6 @@
 package com.stone.microstone.service.chatgpt;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.stone.microstone.domain.entitiy.Question;
 import com.stone.microstone.domain.entitiy.WorkBook;
 import com.stone.microstone.config.ChatGPTConfig;
@@ -22,6 +23,8 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.fasterxml.jackson.core.JsonParser;
+
 
 import java.io.IOException;
 import java.util.*;
@@ -48,6 +51,100 @@ public class ChatGPTServiceImpl implements ChatGPTService {
     @Value("${app.test-mode}")
     private boolean testMode;
 
+    private Map<String, Object> executePrompt(Object requestDto) {
+        Map<String, Object> resultMap = new HashMap<>();
+        HttpHeaders headers = chatGPTConfig.httpHeaders();
+        HttpEntity<?> requestEntity = new HttpEntity<>(requestDto, headers);
+
+        String promptUrl;
+        String model;
+
+        if (requestDto instanceof DalleRequestDto) {
+            promptUrl = chatGPTConfig.getDalleApiUrl();
+            model = ((DalleRequestDto) requestDto).getModel();
+        } else if (requestDto instanceof ChatCompletionDto) {
+            promptUrl = chatGPTConfig.getApiUrl();
+            model = ((ChatCompletionDto) requestDto).getModel();
+        } else {
+            throw new IllegalArgumentException("Unsupported request type");
+        }
+
+        ResponseEntity<String> response = chatGPTConfig
+                .restTemplate()
+                .exchange(promptUrl, HttpMethod.POST, requestEntity, String.class);
+        try {
+            ObjectMapper om = new ObjectMapper();
+
+            om.configure(JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS, true);
+            om.configure(JsonParser.Feature.ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER, true);
+            om.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+            // 응답 본문을 로그로 출력하여 디버깅
+            log.debug("API 응답 본문: {}", response.getBody());
+
+
+            Map<String, Object> responseMap = om.readValue(response.getBody(), new TypeReference<>() {
+            });
+            log.debug("API 응답: {}", responseMap);
+
+            if (model.startsWith("dall")) {
+                // DALL-E 응답 처리
+                List<Map<String, Object>> data = (List<Map<String, Object>>) responseMap.get("data");
+                if (data != null && !data.isEmpty()) {
+                    String imageUrl = (String) data.get(0).get("url");
+                    resultMap.put("content", imageUrl);
+                }
+            } else {
+                // GPT 응답 처리
+                List<Map<String, Object>> choices = (List<Map<String, Object>>) responseMap.get("choices");
+                if (choices != null && !choices.isEmpty()) {
+                    Map<String, Object> firstChoice = choices.get(0);
+                    Map<String, Object> message = (Map<String, Object>) firstChoice.get("message");
+                    if (message != null) {
+                        resultMap.put("content", message.get("content"));
+                    }
+                }
+            }
+        } catch (JsonProcessingException e) {
+            log.debug("JsonProcessingException :: " + e.getMessage(), e);
+        } catch (RuntimeException e) {
+            log.debug("RuntimeException :: " + e.getMessage(), e);
+        }
+        return resultMap;
+    }
+
+
+    @Override
+    public QuestionAnswerResponse processText(String problemText,String language) throws IOException {
+
+        problemText = cleanInputText(problemText); //특수문자 정제 메소드
+        log.debug("받은 문제 텍스트: " + problemText);
+        // 문제 텍스트를 처리하여 요약, 문제생성, 답변 생성 3단계를 수행
+        // 1단계: 문제 텍스트 요약
+        Map<String, Object> summaryResult = summarizeText(problemText);
+        String summarizedText = (String) summaryResult.get("content");
+        if (summarizedText == null || summarizedText.trim().isEmpty()) {
+            throw new IllegalArgumentException("요약된 텍스트가 없습니다.");
+        }
+        log.debug("요약된 텍스트: " + summarizedText);
+
+        // 2단계: 요약된 텍스트로 문제 생성
+        Map<String, Object> questionResult = generateQuestion(summarizedText);
+        String textQuestions = (String) questionResult.get("textQuestions");
+        List<Map<String, String>> imageQuestions = (List<Map<String, String>>) questionResult.get("imageQuestions");
+        log.debug("생성된 질문: " + textQuestions);
+
+        // 3단계: 질문으로 답변 생성
+        Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions);
+        String answerText = (String) answerResult.get("content");
+        if (answerText == null || answerText.trim().isEmpty()) {
+            throw new IllegalArgumentException("생성된 답변이 없습니다.");
+        }
+        log.debug("생성된 답변: " + answerText);
+        List<Question> q=awsS3Service.uploadfile(imageQuestions, testMode);
+
+        return workBookService.getWorkBook(textQuestions, summarizedText, answerText, imageQuestions,q);
+    }
 
     @Override
     public Map<String, Object> summarizeText(String text) { //주어진 텍스트를 요약하는 메소드
@@ -121,6 +218,20 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         }
         return imageQuestions;
     }
+
+
+    private String cleanInputText(String input) {
+        // 줄바꿈 문자를 \\n으로 대체
+        input = input.replace("\n", "\\n");
+        // 탭 문자를 \\t로 대체
+        input = input.replace("\t", "\\t");
+        // 캐리지 리턴 문자를 \\r로 대체
+        input = input.replace("\r", "\\r");
+        // 따옴표 이스케이프 처리
+        input = input.replace("\"", "\\\"");
+        return input;
+    }
+
 
     private String cleanQuestionText(String questionText, int questionNumber) {
         // 문제 번호로 시작하는지 확인하고, 그렇지 않으면 추가
@@ -199,7 +310,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
                 .build();
         log.debug("답변 생성 정보={}", chatCompletionDto.toString());
 
-        List<Question> q=awsS3Service.uploadfile(imageQuestions);
+        List<Question> q=awsS3Service.uploadfile(imageQuestions, testMode);
 
         return executePrompt(chatCompletionDto);
     }
@@ -217,9 +328,43 @@ public class ChatGPTServiceImpl implements ChatGPTService {
     }
 
 
+
+    @Transactional
+    @Override
+    public QuestionAnswerResponse getRetextWorkBook() {
+        Optional<WorkBook> optionalLastWorkBook = workBookRepository.findLastWorkBook();
+        WorkBook lastWorkBook = optionalLastWorkBook.orElseThrow(() -> new RuntimeException("기존 문제집이 존재하지 않습니다."));
+
+        String summarizedText = lastWorkBook.getWb_sumtext();
+        String contextText = lastWorkBook.getWb_content();
+
+        if ((summarizedText == null || summarizedText.trim().isEmpty()) &&
+                (contextText == null || contextText.trim().isEmpty())) {
+            throw new IllegalArgumentException("문제를 재생성할 데이터가 부족합니다.");
+        }
+
+        Map<String, Object> questionResult = regenerateQuestion(summarizedText, contextText);
+        String newQuestion = (String) questionResult.get("content");
+        List<Map<String, String>> imageQuestions = (List<Map<String, String>>) questionResult.get("imageQuestions");
+        String textQuestions = (String) questionResult.get("textQuestions");
+
+        Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions);
+        String answerText = (String) answerResult.get("content");
+
+        WorkBook savedWorkBook = workBookService.findLastWorkBook(newQuestion, answerText, imageQuestions, textQuestions, testMode);
+
+        return new QuestionAnswerResponse(
+                savedWorkBook.getWb_id(),
+                savedWorkBook.getWb_title(),
+                newQuestion,
+                answerText,
+                imageQuestions,
+                textQuestions
+        );
+    }
+
     @Override
     public Map<String, Object> regenerateQuestion(String summarizedText, String contextText) {
-
         // 생성된 문제들을 기반으로 새로운 문제를 생성하는 메소드
         ChatCompletionDto chatCompletionDto = ChatCompletionDto.builder()
                 .model("gpt-4o-mini")
@@ -230,124 +375,57 @@ public class ChatGPTServiceImpl implements ChatGPTService {
                         .build()))
                 .build();
         log.info("재생성 문제 정보={}", chatCompletionDto.toString());
-        return executePrompt(chatCompletionDto);
-    }
 
-    private Map<String, Object> executePrompt(Object requestDto) {
-        Map<String, Object> resultMap = new HashMap<>();
-        HttpHeaders headers = chatGPTConfig.httpHeaders();
-        HttpEntity<?> requestEntity = new HttpEntity<>(requestDto, headers);
-
-        String promptUrl;
-        String model;
-
-        if (requestDto instanceof DalleRequestDto) {
-            promptUrl = chatGPTConfig.getDalleApiUrl();
-            model = ((DalleRequestDto) requestDto).getModel();
-        } else if (requestDto instanceof ChatCompletionDto) {
-            promptUrl = chatGPTConfig.getApiUrl();
-            model = ((ChatCompletionDto) requestDto).getModel();
-        } else {
-            throw new IllegalArgumentException("Unsupported request type");
-        }
-
-        ResponseEntity<String> response = chatGPTConfig
-                .restTemplate()
-                .exchange(promptUrl, HttpMethod.POST, requestEntity, String.class);
         try {
-            ObjectMapper om = new ObjectMapper();
-            Map<String, Object> responseMap = om.readValue(response.getBody(), new TypeReference<>() {
-            });
-            log.debug("API 응답: {}", responseMap);
-
-            if (model.startsWith("dall")) {
-                // DALL-E 응답 처리
-                List<Map<String, Object>> data = (List<Map<String, Object>>) responseMap.get("data");
-                if (data != null && !data.isEmpty()) {
-                    String imageUrl = (String) data.get(0).get("url");
-                    resultMap.put("content", imageUrl);
-                }
-            } else {
-                // GPT 응답 처리
-                List<Map<String, Object>> choices = (List<Map<String, Object>>) responseMap.get("choices");
-                if (choices != null && !choices.isEmpty()) {
-                    Map<String, Object> firstChoice = choices.get(0);
-                    Map<String, Object> message = (Map<String, Object>) firstChoice.get("message");
-                    if (message != null) {
-                        resultMap.put("content", message.get("content"));
-                    }
-                }
-            }
-        } catch (JsonProcessingException e) {
-            log.debug("JsonProcessingException :: " + e.getMessage());
-        } catch (RuntimeException e) {
-            log.debug("RuntimeException :: " + e.getMessage());
+            return executePrompt(chatCompletionDto);
+        } catch (Exception e) {
+            log.error("Prompt 실행 중 오류 발생: {}", e.getMessage(), e);
+            throw new RuntimeException("문제 생성 실패", e);
         }
-        return resultMap;
     }
 
 
     @Override
-    public QuestionAnswerResponse processText(String problemText,String language) throws IOException {
-        log.debug("받은 문제 텍스트: " + problemText);
-        // 문제 텍스트를 처리하여 요약, 문제생성, 답변 생성 3단계를 수행
-        // 1단계: 문제 텍스트 요약
-        Map<String, Object> summaryResult = summarizeText(problemText);
-        String summarizedText = (String) summaryResult.get("content");
-        if (summarizedText == null || summarizedText.trim().isEmpty()) {
-            throw new IllegalArgumentException("요약된 텍스트가 없습니다.");
-        }
-        log.debug("요약된 텍스트: " + summarizedText);
+    public QuestionAnswerResponse reCategoryWorkBook(String category, String language) throws IOException {
 
-        // 2단계: 요약된 텍스트로 문제 생성
-        Map<String, Object> questionResult = generateQuestion(summarizedText);
-        String textQuestions = (String) questionResult.get("textQuestions");
-        List<Map<String, String>> imageQuestions = (List<Map<String, String>>) questionResult.get("imageQuestions");
-        log.debug("생성된 질문: " + textQuestions);
+        String prompt = String.valueOf(generateCategoryQuestions(category, language));
+        Map<String, Object> questionResult = regenerateCategoryQuestion(prompt);
 
-        // 3단계: 질문으로 답변 생성
-        Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions);
-        String answerText = (String) answerResult.get("content");
-        if (answerText == null || answerText.trim().isEmpty()) {
-            throw new IllegalArgumentException("생성된 답변이 없습니다.");
-        }
-        log.debug("생성된 답변: " + answerText);
-        List<Question> q=awsS3Service.uploadfile(imageQuestions);
-
-        return workBookService.getWorkBook(textQuestions, summarizedText, answerText, imageQuestions,q);
-    }
-
-    @Transactional
-    @Override
-    public QuestionAnswerResponse getRetextWorkBook() {
-        // 마지막 문제집을 가져옵니다.
-        Optional<WorkBook> newwork = workBookRepository.findLastWorkBook();
-        WorkBook lastWorkBook = newwork.orElseThrow(() -> new RuntimeException("기존 문제집이 존재하지 않음. User ID: "));
-        log.info(lastWorkBook.getWb_sumtext()+"\\n"+lastWorkBook.getWb_content());
-
-        // 새로운 문제를 생성합니다.
-        //문제.카테고리별 생성하면 sumtext가 없어서 재생성시 오류가 발생.이거 고쳐주세요.이거안하면 큰일납니다.
-        Map<String, Object> questionResult = regenerateQuestion(lastWorkBook.getWb_sumtext(), lastWorkBook.getWb_content());
         String newQuestion = (String) questionResult.get("content");
-        log.debug("새 질문={}", newQuestion);
-
-        // 이미지 질문과 텍스트 질문을 받아옵니다.
         List<Map<String, String>> imageQuestions = (List<Map<String, String>>) questionResult.get("imageQuestions");
         String textQuestions = (String) questionResult.get("textQuestions");
-        // 생성된 질문에 대한 답변을 생성합니다.
+
         Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions);
-
         String answerText = (String) answerResult.get("content");
-        if (answerText == null || answerText.trim().isEmpty()) {
-            throw new RuntimeException("생성된 답변이 없습니다.");
+
+        WorkBook savedWorkBook = workBookService.findLastWorkBook(newQuestion, answerText, imageQuestions, textQuestions, testMode);
+
+        return new QuestionAnswerResponse(
+                savedWorkBook.getWb_id(),
+                savedWorkBook.getWb_title(),
+                newQuestion,
+                answerText,
+                imageQuestions,
+                textQuestions
+        );
+    }
+
+    private Map<String, Object> regenerateCategoryQuestion(String prompt) {
+        ChatCompletionDto questionCompletion = ChatCompletionDto.builder()
+                .model("gpt-4o-mini")
+                .messages(List.of(ChatRequestMsgDto.builder()
+                        .role("user")
+                        .content(prompt)
+                        .build()))
+                .build();
+
+        try {
+            // 생성된 질문 응답 받기
+            return executePrompt(questionCompletion);
+        } catch (Exception e) {
+            log.error("카테고리 문제 생성 중 오류 발생: {}", e.getMessage(), e);
+            throw new RuntimeException("카테고리 문제 생성 실패", e);
         }
-
-
-
-        // 새로운 문제집을 저장합니다.
-        WorkBook saveWorkBook = workBookService.findLastWorkBook(newQuestion, answerText,imageQuestions,textQuestions);
-
-        return new QuestionAnswerResponse(saveWorkBook.getWb_id(), saveWorkBook.getWb_title(), newQuestion, answerText, imageQuestions, textQuestions);
     }
 
 
@@ -387,7 +465,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions);
         String answerText = (String) answerResult.get("content");
 
-        List<Question> q=awsS3Service.uploadfile(imageQuestions);
+        List<Question> q=awsS3Service.uploadfile(imageQuestions, testMode);
 
         return workBookService.getWorkBookwithnosum(textQuestions,answerText,imageQuestions,q);
     }

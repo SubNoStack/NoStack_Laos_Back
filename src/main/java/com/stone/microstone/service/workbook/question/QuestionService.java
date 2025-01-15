@@ -54,9 +54,9 @@ public class QuestionService {
         return questions;
     }
 
-    public List<Question> resave(WorkBook w,List<Map<String,String>> images,String text){
+    public List<Question> resave(WorkBook w,List<Map<String,String>> images,String text, boolean testMode){
         List<Question> old=findQuestion(w);
-        List<Question> newquestion = awsS3Service.updateImage(images,old);
+        List<Question> newquestion = awsS3Service.updateImage(images, old, testMode);
         for(int i=0;i<old.size()-1;i++){
             old.get(i).setPr_image_path(newquestion.get(i).getPr_image_path());
             old.get(i).setPr_image_name(newquestion.get(i).getPr_image_name());
