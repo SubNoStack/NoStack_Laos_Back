@@ -106,7 +106,7 @@ public class ChatGPTController {
         }
     }
 
-    @Operation(summary = "사용자가 보낸 문제 텍스트를 처리하는 api",description = "문제를 전송후 생성.주의!!최상단 json태그에 message태그 존재.")
+    @Operation(summary = "카테고리별 문제를 생성 처리하는 api",description = "문제를 전송후 생성.주의!!최상단 json태그에 message태그 존재.")
     @ApiResponse(responseCode="200",description = "성공",
             content = {@Content(schema = @Schema(implementation = QuestionAnswerResponse.class))})
     @ApiResponse(responseCode = "400", description = "입력 오류",

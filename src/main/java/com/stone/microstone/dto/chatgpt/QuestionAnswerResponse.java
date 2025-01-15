@@ -30,7 +30,7 @@ public class QuestionAnswerResponse {
             arraySchema = @Schema(description = "5개의 이미지 문제내용과 url 리스트들")
     )
     private List<Map<String, String>> imageQuestions;
-    @Schema(description = "나머지 6번~15번까지 전달",example="문제집 내용")
+    @Schema(description = "나머지 6번~15번까지 전달",example="6번~15번문제 전체")
     private String textQuestions;
 
     public QuestionAnswerResponse(int wb_id, String wb_title, String question, String answer, List<Map<String, String>> imageQuestions, String textQuestions) {
