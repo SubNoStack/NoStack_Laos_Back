@@ -35,6 +35,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 
 @Slf4j
@@ -186,30 +187,32 @@ public class ChatGPTController {
     }
 
 
-
-
-    @Operation(summary = "전체 문제 답지 조회 api",description = "파라미터 필요x,주의!!최상단 json태그에 data태그 존재.")
-    @ApiResponse(responseCode="200",description = "성공",
-            content = {@Content(
-                    array = @ArraySchema(schema = @Schema(implementation = WorkBookAnswerResponse.class)))})
-//    @ApiResponse(responseCode = "400",description = "입력오류",
-//            content = {@Content(schema = @Schema(implementation = ErrorResponse.class))})
-    @ApiResponse(responseCode = "500",description = "서버오류",
-            content = {@Content(schema = @Schema(implementation = ErrorResponse.class))})
-    @GetMapping("/answer/all") //답지 전체 조회 api
+    @Operation(summary = "전체 문제 답지 제목 조회 api", description = "파라미터 필요x, 주의!!최상단 json태그에 data태그 존재.")
+    @ApiResponse(responseCode = "200", description = "성공",
+            content = {@Content(schema = @Schema(type = "object",
+                    example = "{\"data\": [{\"wb_title\": \"문제집2\"}, {\"wb_title\": \"문제집3\"}]}"
+            ))})
+    @ApiResponse(responseCode = "500", description = "서버 오류",
+            content = @Content(schema = @Schema(type = "object", example = "{\"error\": \"서버 내부 오류 메시지\"}")))
+    @GetMapping("/answer/all")
     public ResponseEntity answer(){
-
         try{
-            List<WorkBookAnswerResponse> allbook=workBookService.getAllAnswerWorkBook();
+            List<WorkBookAnswerResponse> allbook = workBookService.getAllAnswerWorkBook();
             if(allbook.isEmpty()){
                 return ResponseEntity.ok(Map.of("data", Collections.emptyList()));
             }
-            return ResponseEntity.ok(Map.of("data", allbook));
+            List<Map<String, String>> wbTitles = allbook.stream()
+                    .map(book -> Map.of("wb_title", book.getWb_title()))
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(Map.of("data", wbTitles));
         }catch(Exception e){
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", e.getMessage()));
         }
     }
+
+
+
 
 
     @Operation(summary = "문제집 제목 변경 api",description = "파라미터 두개 필요,주의!!최상단 json태그에 data태그 존재.")
@@ -238,31 +241,6 @@ public class ChatGPTController {
         }
     }
 
-    @Operation(summary = "답지 제목 변경 api",description = "파라미터 두개 필요,주의!!최상단 json태그에 data태그 존재.")
-    @ApiResponse(responseCode="200",description = "성공",
-            content = {@Content(schema = @Schema(implementation = TitleDto.class))})
-//    @ApiResponse(responseCode = "400",description = "입력오류",
-//            content = {@Content(schema = @Schema(implementation = ErrorResponse.class))})
-    @ApiResponse(responseCode = "500", description = "서버 오류",
-            content = @Content(schema = @Schema(type = "object", example = "{\"error\": \"서버 내부 오류 메시지\"}")))
-    @PatchMapping("/answer/title") //답지 제목 변경 api
-    public ResponseEntity settinganswertitle(
-            @Parameter(name="wb_id",
-                    description = "어느 답지 제목을 바꿀지 결정",example="2",required = true)
-            @RequestParam Integer wb_id,
-            @Parameter(name="title",
-                    description = "제목 변경 문자열 작성",example="새로운답지",required = true)
-            @RequestParam String title){ //생성된 답지 id와 변경할 제목 작성.
-
-        try{
-            WorkBook workBook=workBookService.findSearchAndanswertitle(wb_id,title);
-            TitleDto titleDto=new TitleDto("변경 완료",workBook.getWb_id(),workBook.getWb_title());
-            return ResponseEntity.ok(Map.of("data",titleDto));
-        }catch(Exception e){
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", e.getMessage()));
-        }
-    }
 
     @Operation(summary = "문제집pdf 업로드 api",description = "파라미터 두개 필요,완료시 그냥 성공메세지만 전송.")
     @ApiResponse(responseCode = "200", description = "성공적으로 저장됨",

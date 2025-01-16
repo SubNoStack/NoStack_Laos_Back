@@ -26,6 +26,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+//import static org.springframework.http.codec.multipart.MultipartUtils.deleteFile;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -34,6 +36,7 @@ public class AwsS3Service {
     private String bucket;
 
     private final AmazonS3 s3Client;
+
 
     //file로 보내기
 //    public Question uploadfilemult(String s3name, MultipartFile file,Question question) {
@@ -97,6 +100,7 @@ public class AwsS3Service {
             question.setPr_content(imageQuestion.get("question"));
             questions.add(question);
 
+
         }
 
         return questions;
@@ -130,16 +134,18 @@ public class AwsS3Service {
     //난수 생성.
     public String createname() {
         return UUID.randomUUID().toString()+".png";
+
     }
 
-    //이름에 .있는지 확인
+    // 파일 확장자 추출
     private String getFileExtension(String fileName) {
         try {
             return fileName.substring(fileName.lastIndexOf("."));
         } catch (StringIndexOutOfBoundsException e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "잘못된 형식의 파일");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "잘못된 형식의 파일명");
         }
     }
+
 
     //파일 삭제.filename은 db에 저장된 이미지 이름으로 삭제하기.
     public void deleteFile(String fileName) {
@@ -161,4 +167,5 @@ public class AwsS3Service {
         List <Question> questions=uploadfile(imageQuestions, testMode);
         return questions;
     }
+
 }
