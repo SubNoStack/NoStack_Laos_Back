@@ -187,16 +187,13 @@ public class ChatGPTController {
     }
 
 
-
-
-    @Operation(summary = "전체 문제 답지 조회 api",description = "파라미터 필요x,주의!!최상단 json태그에 data태그 존재.")
-    @ApiResponse(responseCode="200",description = "성공",
-            content = {@Content(
-                    array = @ArraySchema(schema = @Schema(implementation = WorkBookAnswerResponse.class)))})
-//    @ApiResponse(responseCode = "400",description = "입력오류",
-//            content = {@Content(schema = @Schema(implementation = ErrorResponse.class))})
-    @ApiResponse(responseCode = "500",description = "서버오류",
-            content = {@Content(schema = @Schema(implementation = ErrorResponse.class))})
+    @Operation(summary = "전체 문제 답지 제목 조회 api", description = "파라미터 필요x, 주의!!최상단 json태그에 data태그 존재.")
+    @ApiResponse(responseCode = "200", description = "성공",
+            content = {@Content(schema = @Schema(type = "object",
+                    example = "{\"data\": [{\"wb_title\": \"문제집2\"}, {\"wb_title\": \"문제집3\"}]}"
+            ))})
+    @ApiResponse(responseCode = "500", description = "서버 오류",
+            content = @Content(schema = @Schema(type = "object", example = "{\"error\": \"서버 내부 오류 메시지\"}")))
     @GetMapping("/answer/all")
     public ResponseEntity answer(){
         try{
@@ -204,8 +201,8 @@ public class ChatGPTController {
             if(allbook.isEmpty()){
                 return ResponseEntity.ok(Map.of("data", Collections.emptyList()));
             }
-            List<String> wbTitles = allbook.stream()
-                    .map(WorkBookAnswerResponse::getWb_title)
+            List<Map<String, String>> wbTitles = allbook.stream()
+                    .map(book -> Map.of("wb_title", book.getWb_title()))
                     .collect(Collectors.toList());
             return ResponseEntity.ok(Map.of("data", wbTitles));
         }catch(Exception e){
@@ -213,6 +210,7 @@ public class ChatGPTController {
                     .body(Map.of("error", e.getMessage()));
         }
     }
+
 
 
 
