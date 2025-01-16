@@ -22,4 +22,5 @@ public interface WorkBookRepository {
     List<WorkBook> findByUserAndpdf();
 
     List<WorkBook> findByUserAndAnsPdf();
+
 }

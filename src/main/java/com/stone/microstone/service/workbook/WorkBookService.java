@@ -128,11 +128,11 @@ public class WorkBookService {
     }
     //재생성시 마지막에 저장한 문제집을 찾고 다시 문제집을 갱신하는 메소드.
     @Transactional
-    public WorkBook findLastWorkBook(String content, String answer,List<Map<String, String>> imageQuestions,String text) {
+    public WorkBook findLastWorkBook(String content, String answer,List<Map<String, String>> imageQuestions,String text, boolean testMode) {
         //유저를 찾고
         //마지막에 생성한 문제집 찾는다.
         Optional<WorkBook> newwork = workBookRepository.findLastWorkBook();
-        List<Question> oldquestion=questionService.resave(newwork.get(),imageQuestions,text);
+        List<Question> oldquestion=questionService.resave(newwork.get(),imageQuestions,text, testMode);
         WorkBook newworkBook;
         if(newwork.isEmpty()) {
             throw new RuntimeException("기존 문제집이 존재하지 않음" );
