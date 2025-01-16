@@ -65,7 +65,7 @@ public class ChatGPTController {
             content = @Content(schema = @Schema(type = "object", example = "{\"error\": \"서버 내부 오류 메시지\"}")))
     public ResponseEntity<Map<String, Object>> processText(
             @Parameter(name="language",description = "어느나라 언어로 생성할건지 작성ex)en,ko,laos",example="ko",required = true)
-            @RequestParam String language,
+            @RequestParam(name = "language", required = false) String language,
             @RequestBody @Valid RequestBodys Text) {
 
         try { //전달받은 문제 텍스트 처리하여 서비스 수행
@@ -83,26 +83,51 @@ public class ChatGPTController {
     }
 
 
-    @Operation(summary = "재생성 api",description = "파라미터 필요x주의!!최상단 json태그에 message태그 존재.")
-    @ApiResponse(responseCode="200",description = "성공",
-            content = {@Content(schema = @Schema(implementation = QuestionAnswerResponse.class))})
 //    @ApiResponse(responseCode = "400",description = "잘못된 요청",
 //            content = {@Content(schema = @Schema(implementation = ErrorResponse.class))})
-    @ApiResponse(responseCode = "500",description = "서버오류",
-            content = {@Content(schema = @Schema(implementation = ErrorResponse.class))})
-    @PostMapping("/retext") //생성된 문제를 재생성을 수행하는 api
-    public ResponseEntity<Object> retext(){
-
-        try{
-            //서비스 수행
-            QuestionAnswerResponse response=chatGPTService.getRetextWorkBook();
+    @Operation(summary = "일반 재생성 api", description = "파라미터 필요x주의!!최상단 json태그에 message태그 존재.")
+    @ApiResponse(responseCode = "200", description = "성공", content = {@Content(schema = @Schema(implementation = QuestionAnswerResponse.class))})
+    @ApiResponse(responseCode = "500", description = "서버오류", content = {@Content(schema = @Schema(implementation = ErrorResponse.class))})
+    @PostMapping("/retext")
+    public ResponseEntity<Object> retext() {
+        try {
+            // 서비스 수행
+            QuestionAnswerResponse response = chatGPTService.getRetextWorkBook();
+            if (response == null) {
+                log.error("응답이 null입니다.");
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(Map.of("error", "재생성된 문제집이 없습니다."));
+            }
             // 결과 반환
-            return new ResponseEntity<>(Map.of("message",response), HttpStatus.OK);
-            // 결과 반환
-        }catch(Exception e){
-            log.error("오류발생");
+            return new ResponseEntity<>(Map.of("message", response), HttpStatus.OK);
+        } catch (Exception e) {
+            log.error("오류 발생: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "WorkBook 저장 중 오류가 발생했습니다."+e.getMessage()));
+                    .body(Map.of("error", "WorkBook 저장 중 오류가 발생했습니다." + e.getMessage()));
+        }
+    }
+
+
+    @Operation(summary = "카테고리 재생성 api", description = "파라미터 필요x주의!!최상단 json태그에 message태그 존재.")
+    @ApiResponse(responseCode = "200", description = "성공", content = {@Content(schema = @Schema(implementation = QuestionAnswerResponse.class))})
+    @ApiResponse(responseCode = "500", description = "서버오류", content = {@Content(schema = @Schema(implementation = ErrorResponse.class))})
+    @PostMapping("/reCategorytext")
+    public ResponseEntity<Object> reCategoryText(
+            @RequestParam(name = "category") String category,
+            @RequestParam(name = "languagee", required = false) String language) {
+        try {
+            QuestionAnswerResponse response = chatGPTService.reCategoryWorkBook(category, language);
+            if (response == null) {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(Map.of("error", "재생성된 카테고리 문제집이 없습니다."));
+            }
+            return new ResponseEntity<>(Map.of("message", response), HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "카테고리 WorkBook 재생성 중 오류가 발생했습니다: " + e.getMessage()));
         }
     }
 
@@ -117,29 +142,14 @@ public class ChatGPTController {
     public ResponseEntity<Map<String, Object>> processCategorys(
             @Parameter(name="category",
                     description = "어느 카테고리로 할지 결정 ex)conversation,object,food,culture",example="object",required = true)
-            @RequestParam("category") String category,
+            @RequestParam(name = "category") String category,
             @Parameter(name="language",description = "어느나라 언어로 생성할건지 작성ex)en,ko,laos",example="ko",required = true)
-            @RequestParam String language) {
+            @RequestParam(name = "language", required = false) String language) {
         log.debug("받은 카테고리: " + category);
 
         try {
             // 카테고리 문제 생성 호출
             QuestionAnswerResponse response = chatGPTService.generateCategoryQuestions(category,language);
-
-            // 이미지 및 텍스트 문제 추출
-            List<Map<String, String>> imageQuestions = (List<Map<String, String>>) response.getImageQuestions();
-            String textQuestions = response.getTextQuestions();
-
-            // 답지 생성
-            Map<String, Object> answerResponse = chatGPTService.generateAnswer(imageQuestions, textQuestions);
-
-//            // 결과 맵 생성
-//            Map<String, Object> result = new LinkedHashMap<>();
-//            result.put("imageQuestions", imageQuestions);
-//            result.put("textQuestions", textQuestions);
-//            result.put("answerSheet", answerResponse);
-//            result.put("message", "카테고리 문제집 생성 완료");
-
             return new ResponseEntity<>(Map.of("message",response), HttpStatus.OK);
 
         } catch (IllegalArgumentException e) {
