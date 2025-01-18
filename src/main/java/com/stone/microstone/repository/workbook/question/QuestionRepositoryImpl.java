@@ -30,12 +30,6 @@ public class QuestionRepositoryImpl implements QuestionRepository {
         return question;
     }
 
-    @Override
-    public Optional<Question> findById(int id) {
-        return em.createQuery("SELECT q FROM Question q WHERE q.pr_id=:id",Question.class)
-                .setParameter("id",id)
-                .getResultList().stream().findFirst();
-    }
 
     //문제집 기반 찾기.
     @Override
