@@ -65,8 +65,9 @@ public class ChatGPTController {
     @ApiResponse(responseCode = "500", description = "서버 오류",
             content = @Content(schema = @Schema(type = "object", example = "{\"error\": \"서버 내부 오류 메시지\"}")))
     public ResponseEntity<Map<String, Object>> processText(
-            @Parameter(name="language",description = "어느나라 언어로 생성할건지 작성ex)en,ko,laos",example="ko",required = true)
-            @RequestParam(name = "language", required = false) String language,
+            @Parameter(name="language",description = "어느나라 언어로 생성할건지 작성ex)english ,korea, Lao language",example="Lao language",required = true)
+            @RequestParam(name = "language") String language,
+
             @RequestBody @Valid RequestBodys Text) {
 
         try { //전달받은 문제 텍스트 처리하여 서비스 수행
@@ -115,7 +116,7 @@ public class ChatGPTController {
     @PostMapping("/reCategorytext")
     public ResponseEntity<Object> reCategoryText(
             @RequestParam(name = "category") String category,
-            @RequestParam(name = "languagee", required = false) String language) {
+            @RequestParam(name = "languagee", required = true) String language) {
         try {
             QuestionAnswerResponse response = chatGPTService.reCategoryWorkBook(category, language);
             if (response == null) {

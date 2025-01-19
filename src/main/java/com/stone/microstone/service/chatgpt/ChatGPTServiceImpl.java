@@ -121,7 +121,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         log.debug("받은 문제 텍스트: " + problemText);
         // 문제 텍스트를 처리하여 요약, 문제생성, 답변 생성 3단계를 수행
         // 1단계: 문제 텍스트 요약
-        Map<String, Object> summaryResult = summarizeText(problemText);
+        Map<String, Object> summaryResult = summarizeText(problemText, language);
         String summarizedText = (String) summaryResult.get("content");
         if (summarizedText == null || summarizedText.trim().isEmpty()) {
             throw new IllegalArgumentException("요약된 텍스트가 없습니다.");
@@ -129,7 +129,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         log.debug("요약된 텍스트: " + summarizedText);
 
         // 2단계: 요약된 텍스트로 문제 생성
-        Map<String, Object> questionResult = generateQuestion(summarizedText);
+        Map<String, Object> questionResult = generateQuestion(summarizedText, language);
         String textQuestions = (String) questionResult.get("textQuestions");
         List<Map<String, String>> imageQuestions = (List<Map<String, String>>) questionResult.get("imageQuestions");
         log.debug("생성된 질문: " + textQuestions);
@@ -147,15 +147,16 @@ public class ChatGPTServiceImpl implements ChatGPTService {
     }
 
     @Override
-    public Map<String, Object> summarizeText(String text) { //주어진 텍스트를 요약하는 메소드
+    public Map<String, Object> summarizeText(String text, String language) { //주어진 텍스트를 요약하는 메소드
         log.debug("[+] 문제 텍스트를 요약합니다.");
         // GPT모델에 요청을 보냄
         ChatCompletionDto chatCompletionDto = ChatCompletionDto.builder()
                 .model("gpt-4o-mini")
                 .messages(List.of(ChatRequestMsgDto.builder()
                         .role("user")
-                        .content("Summarize the following text into concise key points for each paragraph in Korean." +
-                                " Ensure the summary complies with image-generation policies and avoids sensitive or policy-violating content: " + text)
+                        .content("Summarize the following text into concise key points for each paragraph in " + language +
+                                ". Ensure the summary complies with image-generation policies and avoids sensitive or policy-violating content: " + text
+                        )
                         .build()))
                 .build();
         log.debug("요약된 정보={}", chatCompletionDto.toString());
@@ -167,16 +168,16 @@ public class ChatGPTServiceImpl implements ChatGPTService {
     }
 
     @Override
-    public Map<String, Object> generateQuestion(String summarizedText) {
+    public Map<String, Object> generateQuestion(String summarizedText, String language) {
         if (summarizedText == null || summarizedText.trim().isEmpty()) {
             log.error("요약된 텍스트가 없습니다.");
             throw new IllegalArgumentException("요약된 텍스트가 없습니다.");
         }
 
-        log.debug("[+] 요약된 텍스트를 기반으로 문제를 생성합니다.");
+        log.debug("[+] 요약된 텍스트를 기반으로 문제를 생성합니다. 언어: {}", language);
 
-        List<Map<String, String>> imageQuestions = generateImageQuestions(summarizedText);
-        String textQuestions = generateTextQuestions(summarizedText);
+        List<Map<String, String>> imageQuestions = generateImageQuestions(summarizedText, language);
+        String textQuestions = generateTextQuestions(summarizedText, language);
 
         Map<String, Object> result = new HashMap<>();
         result.put("imageQuestions", imageQuestions);
@@ -184,16 +185,19 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
         // 답변 생성 메서드 호출
         Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions);
-        result.put("answers", answerResult); // 답변을 결과 맵에 추가
+        result.put("answers", answerResult);
 
         return result;
     }
 
-    private List<Map<String, String>> generateImageQuestions(String summarizedText) {
+
+
+    private List<Map<String, String>> generateImageQuestions(String summarizedText, String language) {
         List<Map<String, String>> imageQuestions = new ArrayList<>();
         for (int i = 1; i <= 5; i++) {
             String questionPrompt = "Using the summarized text, create one 4-option multiple-choice question without an introduction. Use a formal tone akin to Korean college entrance exam questions." +
-                    " Label the choices as ①, ②, ③, and ④, but do not include the correct answer. If '*' is needed, use it sparingly and avoid emphasizing content with it. " + summarizedText + "Create a minimalist, flat design. Avoid any modern technology or futuristic elements in the image. Please generate an image without any language included in it";
+                    " Label the choices as ①, ②, ③, and ④, but do not include the correct answer. If '*' is needed, use it sparingly and avoid emphasizing content with it. " + "Create a problem using " + language + ". " + summarizedText +
+                    "Create a minimalist, flat design. Avoid any modern technology or futuristic elements in the image. Please generate an image without any language included in it";
 
             ChatCompletionDto questionCompletion = ChatCompletionDto.builder()
                     .model("gpt-4o-mini")
@@ -249,13 +253,13 @@ public class ChatGPTServiceImpl implements ChatGPTService {
     }
 
 
-    private String generateTextQuestions(String summarizedText) {
+    private String generateTextQuestions(String summarizedText, String language) {
         ChatCompletionDto textCompletion = ChatCompletionDto.builder()
                 .model("gpt-4o-mini")
                 .messages(List.of(ChatRequestMsgDto.builder()
                         .role("user")
                         .content("Using the summarized text, generate 10 multiple-choice questions numbered 6 through 15. Exclude any introductory text. Use a formal tone in line with Korean college entrance exam style." +
-                                " Label the options as ①, ②, ③, and ④, ensuring no answers are provided. If '*' is necessary, use it minimally and not for emphasis. " + summarizedText )
+                                " Label the options as ①, ②, ③, and ④, ensuring no answers are provided. If '*' is necessary, use it minimally and not for emphasis. " + "Create a problem using " + language + ". " + summarizedText )
                         .build()))
                 .build();
         log.debug("문제 생성 정보={}", textCompletion.toString());
@@ -305,7 +309,8 @@ public class ChatGPTServiceImpl implements ChatGPTService {
                 .model("gpt-4o-mini")
                 .messages(List.of(ChatRequestMsgDto.builder()
                         .role("user")
-                        .content("Provide the exact answers to the generated questions (1–15) along with detailed explanations limited to four lines each. If a special character is needed, use it sparingly and avoid using it for emphasis. Do not include any special characters such as asterisks (*) in the answers or explanations " + combinedQuestions)
+                        .content("Provide the exact answers to the generated questions (1–15) along with detailed explanations limited to four lines each. If a special character is needed, use it sparingly and avoid using it for emphasis. Do not include any special characters such as asterisks (*) in the answers or explanations " +
+                                  " based on the given question." + combinedQuestions)
                         .build()))
                 .build();
         log.debug("답변 생성 정보={}", chatCompletionDto.toString());
@@ -452,10 +457,10 @@ public class ChatGPTServiceImpl implements ChatGPTService {
                 throw new IllegalArgumentException("Invalid category: " + category);
         }
         // 이미지 문제 생성
-        List<Map<String, String>> imageQuestions = generateImageQuestionsByCategory(prompt);
+        List<Map<String, String>> imageQuestions = generateImageQuestionsByCategory(prompt, language);
 
         // 텍스트 문제 생성
-        String textQuestions = generateTextQuestionsByCategory(prompt);
+        String textQuestions = generateTextQuestionsByCategory(prompt, language);
 
         // QuestionAnswerResponse 객체 반환
         QuestionAnswerResponse response = new QuestionAnswerResponse();
@@ -471,12 +476,12 @@ public class ChatGPTServiceImpl implements ChatGPTService {
     }
 
 
-    private List<Map<String, String>> generateImageQuestionsByCategory(String categoryPrompt) {
+    private List<Map<String, String>> generateImageQuestionsByCategory(String categoryPrompt, String language) {
         List<Map<String, String>> imageQuestions = new ArrayList<>();
         for (int i = 1; i <= 5; i++) {
             String questionPrompt =
-                    "Please create the multiple-choice questions and answers in Korean. Using the summarized text, create one 4-option multiple-choice question without an introduction. Use a formal tone akin to Korean college entrance exam questions." +
-                    "Label the choices as ①, ②, ③, and ④, but do not include the correct answer. If '*' is needed, use it sparingly and avoid emphasizing content with it." + categoryPrompt + "Create a minimalist, flat design. Avoid any modern technology or futuristic elements in the image. Please generate an image without any language included in it";
+                    "Using the summarized text, create one 4-option multiple-choice question without an introduction. Use a formal tone akin to Korean college entrance exam questions." +
+                    "Label the choices as ①, ②, ③, and ④, but do not include the correct answer. If '*' is needed, use it sparingly and avoid emphasizing content with it." + "Please create the problem in" + language + "and provide options ①, ②, ③, and ④ in Korean." + categoryPrompt + "Create a minimalist, flat design. Avoid any modern technology or futuristic elements in the image. Please generate an image without any language included in it";
 
             ChatCompletionDto questionCompletion = ChatCompletionDto.builder()
                     .model("gpt-4o-mini")
@@ -502,10 +507,10 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         return imageQuestions;
     }
 
-    private String generateTextQuestionsByCategory(String categoryPrompt) {
+    private String generateTextQuestionsByCategory(String categoryPrompt, String language) {
         String questionPrompt =
-                "Please create the multiple-choice questions and answers in Korean. Using the summarized text, generate 10 multiple-choice questions numbered 6 through 15. Exclude any introductory text. Use a formal tone in line with Korean college entrance exam style." +
-                " Label the options as ①, ②, ③, and ④, ensuring no answers are provided. If '*' is necessary, use it minimally and not for emphasis. " + categoryPrompt;
+                "Using the summarized text, generate 10 multiple-choice questions numbered 6 through 15. Exclude any introductory text. Use a formal tone in line with Korean college entrance exam style." +
+                " Label the options as ①, ②, ③, and ④, ensuring no answers are provided. If '*' is necessary, use it minimally and not for emphasis. " + "Please create the problem in" + language + "and provide options ①, ②, ③, and ④ in Korean." + categoryPrompt;
 
         ChatCompletionDto textCompletion = ChatCompletionDto.builder()
                 .model("gpt-4o-mini")
