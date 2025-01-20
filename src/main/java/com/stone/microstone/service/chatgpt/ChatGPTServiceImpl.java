@@ -115,7 +115,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
 
     @Override
-    public QuestionAnswerResponse processText(String problemText,String language) throws IOException {
+    public QuestionAnswerResponse processText(String problemText,String language, String category) throws IOException {
 
         problemText = cleanInputText(problemText); //특수문자 정제 메소드
         log.debug("받은 문제 텍스트: " + problemText);
@@ -143,7 +143,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         log.debug("생성된 답변: " + answerText);
         List<Question> q=awsS3Service.uploadfile(imageQuestions, testMode);
 
-        return workBookService.getWorkBook(textQuestions, summarizedText, answerText, imageQuestions,q);
+        return workBookService.getWorkBook(textQuestions, summarizedText, answerText, imageQuestions,q, language,category);
     }
 
     @Override
@@ -556,7 +556,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
         List<Question> q=awsS3Service.uploadfile(imageQuestions, testMode);
 
-        return workBookService.getWorkBookwithnosum(textQuestions,answerText,imageQuestions,q);
+        return workBookService.getWorkBookwithnosum(textQuestions,answerText,imageQuestions,q,language,category);
     }
 
 

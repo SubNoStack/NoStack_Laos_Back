@@ -56,10 +56,10 @@ public class ChatGPTController {
         this.workBookRepository = workBookRepository;
     }
 
-    @PostMapping("/processText") //사용자가 보낸 문제 텍스트를 처리하는 api
-    @Operation(summary = "사용자가 보낸 문제 텍스트를 처리하는 api",description = "문제를 전송후 생성.주의!!최상단 json태그에 message태그 존재.")
-    @ApiResponse(responseCode="200",description = "성공",
-    content = {@Content(schema = @Schema(implementation = QuestionAnswerResponse.class))})
+    @PostMapping("/processText")
+    @Operation(summary = "사용자가 보낸 문제 텍스트를 처리하는 api", description = "문제를 전송후 생성. 주의!!최상단 json태그에 message태그 존재.")
+    @ApiResponse(responseCode = "200", description = "성공",
+            content = {@Content(schema = @Schema(implementation = QuestionAnswerResponse.class))})
     @ApiResponse(responseCode = "400", description = "입력 오류",
             content = @Content(schema = @Schema(type = "object", example = "{\"error\": \"클라이언트 오류 메시지\"}")))
     @ApiResponse(responseCode = "500", description = "서버 오류",
@@ -67,11 +67,13 @@ public class ChatGPTController {
     public ResponseEntity<Map<String, Object>> processText(
             @Parameter(name="language",description = "어느나라 언어로 생성할건지 작성ex)english ,korea, Lao language",example="Lao language",required = true)
             @RequestParam(name = "language") String language,
+            @Parameter(name = "category", description = "문제의 카테고리 ex)conversation, object, food, culture", example = "object", required = true)
+            @RequestParam(name = "category") String category,
 
             @RequestBody @Valid RequestBodys Text) {
 
         try { //전달받은 문제 텍스트 처리하여 서비스 수행
-            QuestionAnswerResponse response = chatGPTService.processText(Text.getProblemText(),language);
+            QuestionAnswerResponse response = chatGPTService.processText(Text.getProblemText(),language,category);
             return new ResponseEntity<>(Map.of("message", response), HttpStatus.OK);
         } catch (IllegalArgumentException e) {
             log.error("입력 오류", e.getMessage());
@@ -243,29 +245,50 @@ public class ChatGPTController {
     }
 
 
-    @Operation(summary = "문제집pdf 업로드 api",description = "파라미터 두개 필요,완료시 그냥 성공메세지만 전송.")
+//    @Operation(summary = "문제집pdf 업로드 api",description = "파라미터 두개 필요,완료시 그냥 성공메세지만 전송.")
+//    @ApiResponse(responseCode = "200", description = "성공적으로 저장됨",
+//            content = @Content(schema = @Schema(type = "string", example = "{\"message\": \"저장완료\"}")))
+//    @ApiResponse(responseCode = "500", description = "서버 오류",
+//            content = @Content(schema = @Schema(type = "object", example = "{\"error\": \"서버 내부 오류 메시지\"}")))
+//    @PostMapping("/upload")  //생성된 문제집의 pdf를 저장하는 api
+//    public ResponseEntity uploadWorkbook(
+//            @Parameter(name="wb_id",
+//                    description = "어느 문제집 pdf 업로드 결정",example="2",required = true)
+//            @RequestParam Integer wb_id,
+//            @Parameter(name="file",
+//                    description = "문제집 pdf 데이터 올리기",example="파일 데이터",required = true)
+//            @RequestParam("file")MultipartFile file){ //생성된 문제 id와 pdf파일.
+//        try{
+//            //pdf만 저장하니 서비스만 수행
+//            pdfService.savedata2(file,wb_id);
+//            return ResponseEntity.ok(Map.of("message","저장완료"));
+//        }catch (Exception e){
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+//                    .body(Map.of("error", e.getMessage()));
+//        }
+//
+//    }
+
+    @Operation(summary = "문제집pdf 업로드 api", description = "파라미터 두개 필요, 완료시 그냥 성공메세지만 전송.")
     @ApiResponse(responseCode = "200", description = "성공적으로 저장됨",
             content = @Content(schema = @Schema(type = "string", example = "{\"message\": \"저장완료\"}")))
     @ApiResponse(responseCode = "500", description = "서버 오류",
             content = @Content(schema = @Schema(type = "object", example = "{\"error\": \"서버 내부 오류 메시지\"}")))
-    @PostMapping("/upload")  //생성된 문제집의 pdf를 저장하는 api 
-    public ResponseEntity uploadWorkbook(
-            @Parameter(name="wb_id",
-                    description = "어느 문제집 pdf 업로드 결정",example="2",required = true)
+    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE) //생성된 문제집의 pdf를 저장하는 api
+    public ResponseEntity<?> uploadWorkbook(
+            @Parameter(name = "wb_id", description = "어느 문제집 pdf 업로드 결정", example = "2", required = true)
             @RequestParam Integer wb_id,
-            @Parameter(name="file",
-                    description = "문제집 pdf 데이터 올리기",example="파일 데이터",required = true)
-            @RequestParam("file")MultipartFile file){ //생성된 문제 id와 pdf파일.
-        try{
-            //pdf만 저장하니 서비스만 수행
-            pdfService.savedata2(file,wb_id);
-            return ResponseEntity.ok(Map.of("message","저장완료"));
-        }catch (Exception e){
+            @Parameter(name = "file", description = "문제집 pdf 데이터 올리기", required = true)
+            @RequestParam("file") MultipartFile file) {
+        try {
+            pdfService.savedata2(file, wb_id);
+            return ResponseEntity.ok(Map.of("message", "저장완료"));
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", e.getMessage()));
         }
-
     }
+
 
     @Operation(summary = "답지 pdf 업로드 api",description = "파라미터 두개 필요")
     @ApiResponse(responseCode = "200", description = "성공적으로 저장됨",
