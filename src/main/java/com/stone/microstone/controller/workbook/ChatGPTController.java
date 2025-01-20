@@ -116,7 +116,7 @@ public class ChatGPTController {
     @PostMapping("/reCategorytext")
     public ResponseEntity<Object> reCategoryText(
             @RequestParam(name = "category") String category,
-            @RequestParam(name = "languagee", required = true) String language) {
+            @RequestParam(name = "language", required = true) String language) {
         try {
             QuestionAnswerResponse response = chatGPTService.reCategoryWorkBook(category, language);
             if (response == null) {

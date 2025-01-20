@@ -197,7 +197,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         for (int i = 1; i <= 5; i++) {
             String questionPrompt = "Using the summarized text, create one 4-option multiple-choice question without an introduction. Use a formal tone akin to Korean college entrance exam questions." +
                     " Label the choices as ①, ②, ③, and ④, but do not include the correct answer. If '*' is needed, use it sparingly and avoid emphasizing content with it. " + "Create a problem using " + language + ". " + summarizedText +
-                    "Create a minimalist, flat design. Avoid any modern technology or futuristic elements in the image. Please generate an image without any language included in it";
+                    ". Create a minimalist, flat design. Avoid any modern technology or futuristic elements in the image. Please generate an image without any language included in it";
 
             ChatCompletionDto questionCompletion = ChatCompletionDto.builder()
                     .model("gpt-4o-mini")
@@ -303,13 +303,14 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         // 이미지 질문을 문자열로 변환
         String imageQuestionsString = convertImageQuestionsToString(imageQuestions);
 
-        String combinedQuestions = "이미지 문제 (1-5번):\n" + imageQuestionsString + "\n\n텍스트 문제 (6-15번):\n" + textQuestions;
+        String combinedQuestions = "문제 (1-5번):\n" + imageQuestionsString + "\n\n문제 (6-15번):\n" + textQuestions;
 
         ChatCompletionDto chatCompletionDto = ChatCompletionDto.builder()
                 .model("gpt-4o-mini")
                 .messages(List.of(ChatRequestMsgDto.builder()
                         .role("user")
-                        .content("Provide the exact answers to the generated questions (1–15) along with detailed explanations limited to four lines each. If a special character is needed, use it sparingly and avoid using it for emphasis. Do not include any special characters such as asterisks (*) in the answers or explanations " +
+                        .content("Provide the exact answers to the generated questions (1–15) along with detailed explanations limited to four lines each. If a special character is needed, use it sparingly and avoid using it for emphasis." +
+                                " Do not include any special characters such as asterisks (*) in the answers or explanations " +
                                   " based on the given question." + combinedQuestions)
                         .build()))
                 .build();
@@ -317,7 +318,13 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
         List<Question> q=awsS3Service.uploadfile(imageQuestions, testMode);
 
-        return executePrompt(chatCompletionDto);
+        Map<String, Object> response = executePrompt(chatCompletionDto);
+
+        if (response == null || response.isEmpty()) {
+            throw new RuntimeException("답변 생성 실패");
+        }
+
+        return response;
     }
 
 
@@ -349,11 +356,22 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         }
 
         Map<String, Object> questionResult = regenerateQuestion(summarizedText, contextText);
+        if (questionResult == null || questionResult.isEmpty()) {
+            throw new RuntimeException("문제 생성이 실패했습니다.");
+        }
+
         String newQuestion = (String) questionResult.get("content");
         List<Map<String, String>> imageQuestions = (List<Map<String, String>>) questionResult.get("imageQuestions");
         String textQuestions = (String) questionResult.get("textQuestions");
+        if ((imageQuestions == null || imageQuestions.isEmpty()) && (textQuestions == null || textQuestions.trim().isEmpty())) {
+            throw new RuntimeException("문제 생성 실패: imageQuestions 또는 textQuestions가 비어 있습니다.");
+        }
+
 
         Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions);
+        if (answerResult == null || answerResult.isEmpty()) {
+            throw new RuntimeException("답변 생성 실패");
+        }
         String answerText = (String) answerResult.get("content");
 
         WorkBook savedWorkBook = workBookService.findLastWorkBook(newQuestion, answerText, imageQuestions, textQuestions, testMode);
@@ -370,24 +388,90 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
     @Override
     public Map<String, Object> regenerateQuestion(String summarizedText, String contextText) {
-        // 생성된 문제들을 기반으로 새로운 문제를 생성하는 메소드
-        ChatCompletionDto chatCompletionDto = ChatCompletionDto.builder()
-                .model("gpt-4o-mini")
-                .messages(List.of(ChatRequestMsgDto.builder()
-                        .role("user")
-                        .content("Using the provided text, create 15 new multiple-choice questions that do not repeat or overlap with the previous ones. Maintain a formal tone consistent with Korean college entrance exam questions. Label the options as ①, ②, ③, and ④, and do not include the correct answers. " +
-                                "[Previous Questions] " + contextText + "[Summarized Text]" + summarizedText)
-                        .build()))
-                .build();
-        log.info("재생성 문제 정보={}", chatCompletionDto.toString());
+        if (summarizedText == null || summarizedText.trim().isEmpty()) {
+            log.error("요약된 텍스트가 없습니다.");
+            throw new IllegalArgumentException("요약된 텍스트가 없습니다.");
+        }
+        log.debug("[+] 기존 문제들을 기반으로 새로운 문제를 생성합니다.");
 
         try {
-            return executePrompt(chatCompletionDto);
+            // 기존 문제를 참고하여 새로운 이미지 기반 문제 5개 생성
+            List<Map<String, String>> imageQuestions = regenerateImageQuestions(summarizedText, contextText);
+
+            // 기존 문제를 참고하여 새로운 텍스트 기반 문제 10개 생성
+            String textQuestions = regenerateTextQuestions(summarizedText, contextText);
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("imageQuestions", imageQuestions);
+            result.put("textQuestions", textQuestions);
+
+            // 답지 생성
+            Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions);
+            result.put("answers", answerResult);
+
+            return result;
+
         } catch (Exception e) {
             log.error("Prompt 실행 중 오류 발생: {}", e.getMessage(), e);
             throw new RuntimeException("문제 생성 실패", e);
         }
     }
+
+    private List<Map<String, String>> regenerateImageQuestions(String summarizedText, String contextText) {
+        List<Map<String, String>> imageQuestions = new ArrayList<>();
+
+        for (int i = 1; i <= 5; i++) {
+            String questionPrompt = "Based on the summarized text, generate a new 4-option multiple-choice question that does not overlap with previous questions." +
+                    " Ensure a formal tone similar to Korean college entrance exams. Label the choices as ①, ②, ③, and ④, but do not include the correct answer." +
+                    " Previous Questions: " + contextText + " Summarized Text: " + summarizedText;
+
+            ChatCompletionDto questionCompletion = ChatCompletionDto.builder()
+                    .model("gpt-4o-mini")
+                    .messages(List.of(ChatRequestMsgDto.builder()
+                            .role("user")
+                            .content(questionPrompt)
+                            .build()))
+                    .build();
+
+            Map<String, Object> questionResponse = executePrompt(questionCompletion);
+            String questionText = (String) questionResponse.get("content");
+
+            // 문제 텍스트 정제
+            questionText = cleanQuestionText(questionText, i);
+
+            // 이미지 생성 요청
+            String imageUrl = generateImage(questionText);
+
+            Map<String, String> questionWithImage = new HashMap<>();
+            questionWithImage.put("question", questionText);
+            questionWithImage.put("imageUrl", imageUrl);
+
+            imageQuestions.add(questionWithImage);
+        }
+        return imageQuestions;
+    }
+
+    private String regenerateTextQuestions(String summarizedText, String contextText) {
+        String questionPrompt = "Based on the summarized text, generate 10 new multiple-choice questions numbered 6 to 15." +
+                " Ensure these questions do not overlap with previous ones. Maintain a formal tone similar to Korean college entrance exams." +
+                " Label the options as ①, ②, ③, and ④, ensuring no answers are provided." +
+                " Previous Questions: " + contextText + " Summarized Text: " + summarizedText;
+
+        ChatCompletionDto textCompletion = ChatCompletionDto.builder()
+                .model("gpt-4o-mini")
+                .messages(List.of(ChatRequestMsgDto.builder()
+                        .role("user")
+                        .content(questionPrompt)
+                        .build()))
+                .build();
+
+        log.debug("재생성 텍스트 문제 요청: {}", textCompletion.toString());
+
+        Map<String, Object> textQuestionsResponse = executePrompt(textCompletion);
+        return (String) textQuestionsResponse.get("content");
+    }
+
+
 
 
     @Override
@@ -481,7 +565,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         for (int i = 1; i <= 5; i++) {
             String questionPrompt =
                     "Using the summarized text, create one 4-option multiple-choice question without an introduction. Use a formal tone akin to Korean college entrance exam questions." +
-                    "Label the choices as ①, ②, ③, and ④, but do not include the correct answer. If '*' is needed, use it sparingly and avoid emphasizing content with it." + "Please create the problem in" + language + "and provide options ①, ②, ③, and ④ in Korean." + categoryPrompt + "Create a minimalist, flat design. Avoid any modern technology or futuristic elements in the image. Please generate an image without any language included in it";
+                    "Label the choices as ①, ②, ③, and ④, but do not include the correct answer. If '*' is needed, use it sparingly and avoid emphasizing content with it." + "Please create the problem in " + language + " and provide options ①, ②, ③, and ④ in Korean." + categoryPrompt + "Create a minimalist, flat design. Avoid any modern technology or futuristic elements in the image. Please generate an image without any language included in it";
 
             ChatCompletionDto questionCompletion = ChatCompletionDto.builder()
                     .model("gpt-4o-mini")
@@ -510,7 +594,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
     private String generateTextQuestionsByCategory(String categoryPrompt, String language) {
         String questionPrompt =
                 "Using the summarized text, generate 10 multiple-choice questions numbered 6 through 15. Exclude any introductory text. Use a formal tone in line with Korean college entrance exam style." +
-                " Label the options as ①, ②, ③, and ④, ensuring no answers are provided. If '*' is necessary, use it minimally and not for emphasis. " + "Please create the problem in" + language + "and provide options ①, ②, ③, and ④ in Korean." + categoryPrompt;
+                " Label the options as ①, ②, ③, and ④, ensuring no answers are provided. If '*' is necessary, use it minimally and not for emphasis. " + "Please create the problem in " + language + " and provide options ①, ②, ③, and ④ in Korean. " + categoryPrompt;
 
         ChatCompletionDto textCompletion = ChatCompletionDto.builder()
                 .model("gpt-4o-mini")
