@@ -31,6 +31,12 @@ public class WorkBook {
     @Column(columnDefinition = "MEDIUMTEXT")
     private String wb_answer;
 
+    @Column(columnDefinition = "VARCHAR(45)")
+    private String wb_language;
+
+    @Column(columnDefinition = "VARCHAR(45)")
+    private String wb_category;
+
     @Column
     private String wb_title_answer;
 
