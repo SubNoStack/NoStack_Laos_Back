@@ -245,58 +245,95 @@ public class ChatGPTController {
     }
 
     //content = @Content(mediaType = MediaType.MULTIPART_FORM_DATA_VALUE,
-    @Operation(summary = "문제집pdf 업로드 api",description = "파라미터 두개 필요,완료시 그냥 성공메세지만 전송.")
+//    @Operation(summary = "문제집pdf 업로드 api",description = "파라미터 두개 필요,완료시 그냥 성공메세지만 전송.")
+//    @ApiResponse(responseCode = "200", description = "성공적으로 저장됨",
+//            content = @Content(schema = @Schema(type = "string", example = "{\"message\": \"저장완료\"}")))
+//    @ApiResponse(responseCode = "500", description = "서버 오류",
+//            content = @Content(schema = @Schema(type = "object", example = "{\"error\": \"서버 내부 오류 메시지\"}")))
+//    @PostMapping("/upload")  //생성된 문제집의 pdf를 저장하는 api
+//    public ResponseEntity uploadWorkbook(
+//            @Parameter(name="wb_id",
+//                    description = "어느 문제집 pdf 업로드 결정",example="2",required = true)
+//            @RequestParam Integer wb_id,
+//            @Parameter(name="file",
+//                    description = "문제집 pdf 데이터 올리기",example="파일 데이터",required = true)
+//            @RequestParam("file")MultipartFile file){ //생성된 문제 id와 pdf파일.
+//
+//        try{
+//            //pdf만 저장하니 서비스만 수행
+//            pdfService.savedata2(file,wb_id);
+//            return ResponseEntity.ok(Map.of("message","저장완료"));
+//        }catch (Exception e){
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+//                    .body(Map.of("error", e.getMessage()));
+//        }
+//
+//    }
+
+    @Operation(summary = "문제집pdf 업로드 api", description = "파라미터 두개 필요, 완료시 그냥 성공메세지만 전송.")
     @ApiResponse(responseCode = "200", description = "성공적으로 저장됨",
             content = @Content(schema = @Schema(type = "string", example = "{\"message\": \"저장완료\"}")))
     @ApiResponse(responseCode = "500", description = "서버 오류",
             content = @Content(schema = @Schema(type = "object", example = "{\"error\": \"서버 내부 오류 메시지\"}")))
-    @PostMapping("/upload")  //생성된 문제집의 pdf를 저장하는 api
-    public ResponseEntity uploadWorkbook(
-            @Parameter(name="wb_id",
-                    description = "어느 문제집 pdf 업로드 결정",example="2",required = true)
+    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> uploadWorkbook(
+            @Parameter(name = "wb_id", description = "어느 문제집 pdf 업로드 결정", example = "2", required = true)
             @RequestParam Integer wb_id,
-            @Parameter(name="MultipartFile",
-                    description = "문제집 pdf 데이터 올리기",example="파일 데이터",required = true,
-                    content = @Content(mediaType = MediaType.MULTIPART_FORM_DATA_VALUE))
-            @RequestParam("MultipartFile")MultipartFile file){ //생성된 문제 id와 pdf파일.
-         
-        try{
-            //pdf만 저장하니 서비스만 수행
-            pdfService.savedata2(file,wb_id);
-            return ResponseEntity.ok(Map.of("message","저장완료"));
-        }catch (Exception e){
+            @Valid @ModelAttribute RequestBodys_file pdf_file) {
+        try {
+            pdfService.savedata2(pdf_file.getFile(), wb_id);
+            return ResponseEntity.ok(Map.of("message", "저장완료"));
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", e.getMessage()));
         }
-
     }
 
 
 
+//    @Operation(summary = "답지 pdf 업로드 api",description = "파라미터 두개 필요")
+//    @ApiResponse(responseCode = "200", description = "성공적으로 저장됨",
+//            content = @Content(schema = @Schema(type = "string", example = "{\"message\": \"저장완료\"}")))
+//    @ApiResponse(responseCode = "500", description = "서버 오류",
+//            content = @Content(schema = @Schema(type = "object", example = "{\"error\": \"서버 내부 오류 메시지\"}")))
+//    @PostMapping("/answer/upload") //생성된 답지의 pdf 저장 api
+//    public ResponseEntity uploadanswer(
+//            @Parameter(name="wb_id",
+//                    description = "어느 답지 pdf 업로드 결정",example="2",required = true)
+//            @RequestParam Integer wb_id,
+//            @Parameter(name="file",
+//                    description = "답지 pdf 데이터 올리기",example="파일 데이터",required = true)
+//            @RequestParam("file")MultipartFile file){//생성된 답지 id와 pdf파일.
+//
+//        try{
+//            //pdf만 저장하니 서비스만 수행
+//            pdfService.answersavedata2(file,wb_id);
+//            return ResponseEntity.ok(Map.of("message","저장완료"));
+//        }catch (Exception e){
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+//                    .body(Map.of("error", e.getMessage()));
+//        }
+//    }
 
-    @Operation(summary = "답지 pdf 업로드 api",description = "파라미터 두개 필요")
+    @Operation(summary = "답지 pdf 업로드 api", description = "파라미터 두개 필요")
     @ApiResponse(responseCode = "200", description = "성공적으로 저장됨",
             content = @Content(schema = @Schema(type = "string", example = "{\"message\": \"저장완료\"}")))
     @ApiResponse(responseCode = "500", description = "서버 오류",
             content = @Content(schema = @Schema(type = "object", example = "{\"error\": \"서버 내부 오류 메시지\"}")))
-    @PostMapping("/answer/upload") //생성된 답지의 pdf 저장 api
-    public ResponseEntity uploadanswer(
-            @Parameter(name="wb_id",
-                    description = "어느 답지 pdf 업로드 결정",example="2",required = true)
+    @PostMapping(value = "/answer/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> uploadanswer(
+            @Parameter(name = "wb_id", description = "어느 답지 pdf 업로드 결정", example = "2", required = true)
             @RequestParam Integer wb_id,
-            @Parameter(name="file",
-                    description = "답지 pdf 데이터 올리기",example="파일 데이터",required = true)
-            @RequestParam("file")MultipartFile file){//생성된 답지 id와 pdf파일.
-
-        try{
-            //pdf만 저장하니 서비스만 수행
-            pdfService.answersavedata2(file,wb_id);
-            return ResponseEntity.ok(Map.of("message","저장완료"));
-        }catch (Exception e){
+            @Valid @ModelAttribute RequestBodys_file pdf_file) {
+        try {
+            pdfService.answersavedata2(pdf_file.getFile(), wb_id);
+            return ResponseEntity.ok(Map.of("message", "저장완료"));
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", e.getMessage()));
         }
     }
+
 
 
     @Operation(summary = "삭제 api",description = "삭제시 관련된 데이터 전부 삭제")
