@@ -50,12 +50,12 @@ public class WorkBookService {
 
     //기존의 저장된 문제집을 찾고,문제집 pdf 테이블을 생성한뒤.json 응답을위한 dto 생성후 반환
     @Transactional
-    public QuestionAnswerResponse getWorkBook(String Question, String summ, String answer, List<Map<String, String>> imageQuestions, List<Question> questions) throws IOException {
+    public QuestionAnswerResponse getWorkBook(String Question, String summ, String answer, List<Map<String, String>> imageQuestions, List<Question> questions, String language, String category) throws IOException {
         if (answer == null || answer.trim().isEmpty()) {
             log.error("생성된 답변이 없습니다.");
             throw new RuntimeException("생성된 답변이 존재하지 않습니다.");
         }
-        WorkBook saveWorkBook = findAndsaveWorkBook(Question, summ, answer);
+        WorkBook saveWorkBook = findAndsaveWorkBook(Question, summ, answer, language, category);
 
         // pdf테이블들 생성,question담기.
         pdfService.save(saveWorkBook.getWb_id());
@@ -71,12 +71,12 @@ public class WorkBookService {
     }
 
     @Transactional
-    public QuestionAnswerResponse getWorkBookwithnosum(String Question, String answer, List<Map<String, String>> imageQuestions, List<Question> questions) throws IOException {
+    public QuestionAnswerResponse getWorkBookwithnosum(String Question, String answer, List<Map<String, String>> imageQuestions, List<Question> questions, String language, String category) throws IOException {
         if (answer == null || answer.trim().isEmpty()) {
             log.error("생성된 답변이 없습니다.");
             throw new RuntimeException("생성된 답변이 존재하지 않습니다.");
         }
-        WorkBook saveWorkBook = findAndsaveWorkBookwithno(Question, answer);
+        WorkBook saveWorkBook = findAndsaveWorkBookwithno(Question, answer, language, category);
 
         // pdf테이블들 생성,question담기.
         pdfService.save(saveWorkBook.getWb_id());
@@ -93,7 +93,7 @@ public class WorkBookService {
 
     //유저 정보를 이용하여 유저가 생성한 문제를 저장하기 위해 수행하는 메소드.
     @Transactional
-    public WorkBook findAndsaveWorkBook(String content,String sumtext,String answer) {
+    public WorkBook findAndsaveWorkBook(String content,String sumtext,String answer , String language , String category) {
 
         //다음 문제 번호 찾고 테이블에 행데이터 넣기.
         int nextid=workBookRepository.findMaxUserid().orElse(0)+1;
@@ -106,12 +106,14 @@ public class WorkBookService {
         newwork.setWb_sumtext(sumtext);
         newwork.setWb_answer(answer);
         newwork.setWb_title_answer(antitle);
+        newwork.setWb_language(language);
+        newwork.setWb_category(category);
         return workBookRepository.save(newwork);
 
     }
 
     @Transactional
-    public WorkBook findAndsaveWorkBookwithno(String content,String answer) {
+    public WorkBook findAndsaveWorkBookwithno(String content,String answer, String language, String category) {
 
         //다음 문제 번호 찾고 테이블에 행데이터 넣기.
         int nextid=workBookRepository.findMaxUserid().orElse(0)+1;
@@ -123,6 +125,8 @@ public class WorkBookService {
         newwork.setWb_create(LocalDate.now());
         newwork.setWb_answer(answer);
         newwork.setWb_title_answer(antitle);
+        newwork.setWb_language(language);
+        newwork.setWb_category(category);
         return workBookRepository.save(newwork);
 
     }
