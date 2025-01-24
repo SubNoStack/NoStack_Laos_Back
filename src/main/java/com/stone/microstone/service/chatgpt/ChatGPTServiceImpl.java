@@ -369,6 +369,8 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
 
         Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions);
+
+
         if (answerResult == null || answerResult.isEmpty()) {
             throw new RuntimeException("답변 생성 실패");
         }
@@ -474,48 +476,48 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
 
 
-    @Override
-    public QuestionAnswerResponse reCategoryWorkBook(String category, String language) throws IOException {
+        @Override
+        public QuestionAnswerResponse reCategoryWorkBook(String category, String language) throws IOException {
 
-        String prompt = String.valueOf(generateCategoryQuestions(category, language));
-        Map<String, Object> questionResult = regenerateCategoryQuestion(prompt);
+            String prompt = String.valueOf(generateCategoryQuestions(category, language));
+            Map<String, Object> questionResult = regenerateCategoryQuestion(prompt);
 
-        String newQuestion = (String) questionResult.get("content");
-        List<Map<String, String>> imageQuestions = (List<Map<String, String>>) questionResult.get("imageQuestions");
-        String textQuestions = (String) questionResult.get("textQuestions");
+            String newQuestion = (String) questionResult.get("content");
+            List<Map<String, String>> imageQuestions = (List<Map<String, String>>) questionResult.get("imageQuestions");
+            String textQuestions = (String) questionResult.get("textQuestions");
 
-        Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions);
-        String answerText = (String) answerResult.get("content");
+            Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions);
+            String answerText = (String) answerResult.get("content");
 
-        WorkBook savedWorkBook = workBookService.findLastWorkBook(newQuestion, answerText, imageQuestions, textQuestions, testMode);
+            WorkBook savedWorkBook = workBookService.findLastWorkBook(newQuestion, answerText, imageQuestions, textQuestions, testMode);
 
-        return new QuestionAnswerResponse(
-                savedWorkBook.getWb_id(),
-                savedWorkBook.getWb_title(),
-                newQuestion,
-                answerText,
-                imageQuestions,
-                textQuestions
-        );
-    }
-
-    private Map<String, Object> regenerateCategoryQuestion(String prompt) {
-        ChatCompletionDto questionCompletion = ChatCompletionDto.builder()
-                .model("gpt-4o-mini")
-                .messages(List.of(ChatRequestMsgDto.builder()
-                        .role("user")
-                        .content(prompt)
-                        .build()))
-                .build();
-
-        try {
-            // 생성된 질문 응답 받기
-            return executePrompt(questionCompletion);
-        } catch (Exception e) {
-            log.error("카테고리 문제 생성 중 오류 발생: {}", e.getMessage(), e);
-            throw new RuntimeException("카테고리 문제 생성 실패", e);
+            return new QuestionAnswerResponse(
+                    savedWorkBook.getWb_id(),
+                    savedWorkBook.getWb_title(),
+                    newQuestion,
+                    answerText,
+                    imageQuestions,
+                    textQuestions
+            );
         }
-    }
+
+        private Map<String, Object> regenerateCategoryQuestion(String prompt) {
+            ChatCompletionDto questionCompletion = ChatCompletionDto.builder()
+                    .model("gpt-4o-mini")
+                    .messages(List.of(ChatRequestMsgDto.builder()
+                            .role("user")
+                            .content(prompt)
+                            .build()))
+                    .build();
+
+            try {
+                // 생성된 질문 응답 받기
+                return executePrompt(questionCompletion);
+            } catch (Exception e) {
+                log.error("카테고리 문제 생성 중 오류 발생: {}", e.getMessage(), e);
+                throw new RuntimeException("카테고리 문제 생성 실패", e);
+            }
+        }
 
 
 
