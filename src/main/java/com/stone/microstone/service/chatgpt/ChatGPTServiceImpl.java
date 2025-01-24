@@ -316,8 +316,6 @@ public class ChatGPTServiceImpl implements ChatGPTService {
                 .build();
         log.debug("답변 생성 정보={}", chatCompletionDto.toString());
 
-        List<Question> q=awsS3Service.uploadfile(imageQuestions, testMode);
-
         Map<String, Object> response = executePrompt(chatCompletionDto);
 
         if (response == null || response.isEmpty()) {
