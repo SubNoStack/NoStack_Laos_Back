@@ -262,11 +262,16 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
         log.debug("[+] 이미지 생성 요청: {}", description);
 
+        // 설명을 영어로 번역
+        String englishDescription = translateToEnglish(description);
+
+        // DALL-E 2 요청 텍스트
+        String prompt = englishDescription + " Create an image based on the following minimalist description. The design must be flat, simple, and free of modern or futuristic elements. Avoid using text or language in the image. Design with a formal tone suitable for a Korean college exam. Description: ";
+
         // OpenAI API 요청 생성
         DalleRequestDto dalleRequest = DalleRequestDto.builder()
-                .model("dall-e-3")
-                .prompt(description + "Create an image based on the following minimalist description. The design must be flat, simple, and free of modern or futuristic elements." +
-                        " Avoid using text or language in the image. Design with a formal tone suitable for a Korean college exam. Description: ")
+                .model("dall-e-2")
+                .prompt(prompt)
                 .build();
 
         Map<String, Object> imageResponse = executePrompt(dalleRequest);
@@ -276,6 +281,29 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         log.debug("생성된 이미지 URL: {}", imageUrl);
 
         return imageUrl;
+    }
+
+    private String translateToEnglish(String description) {
+        // GPT를 사용하여 설명을 영어로 번역하는 프롬프트 작성
+        ChatCompletionDto translationRequest = ChatCompletionDto.builder()
+                .model("gpt-4o-mini")
+                .messages(List.of(ChatRequestMsgDto.builder()
+                        .role("user")
+                        .content("Translate the following text into English. Provide an accurate and clear translation. \n" + description +
+                                "Additionally, create a detailed image description related to the content of the question." +
+                                " The description should be clear and concise, ensuring that it can be used to generate a visual representation of the topic. Do not use any futuristic, modern, or abstract elements." +
+                                " The image should match the context and tone of the problem described. Avoid using any text in the image.")
+
+                        .build()))
+                .build();
+
+        log.debug("번역 요청 정보={}", translationRequest.toString());
+
+        // GPT로 번역된 텍스트 응답을 받아옴
+        Map<String, Object> translationResponse = executePrompt(translationRequest);
+
+        // 번역된 텍스트 반환
+        return (String) translationResponse.get("content");
     }
 
     @Override
@@ -552,7 +580,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         for (int i = 1; i <= 5; i++) {
             String questionPrompt =
                     "Using the summarized text, create a single 4-option multiple-choice question numbered " + i +
-                            " without any introductory text. Ensure the question is written in a formal tone, similar to Korean college entrance exam questions. " +
+                            ". without any introductory text. Ensure the question is written in a formal tone, similar to Korean college entrance exam questions. " +
                             "The question should not be similar to any previous questions generated. Ensure variety by addressing different aspects of the topic, using different perspectives, or rephrasing the concepts. " +
                             "Label the answer choices as ①, ②, ③, and ④, and do not include the correct answer. Avoid using special characters like '*' for emphasis. " +
                             "Please write the question in " + language + " and provide the options ①, ②, ③, and ④ in Korean." + categoryPrompt ;
