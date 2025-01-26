@@ -149,6 +149,10 @@ public class AwsS3Service {
 
     //파일 삭제.filename은 db에 저장된 이미지 이름으로 삭제하기.
     public void deleteFile(String fileName) {
+        if (fileName == null || fileName.isEmpty()) {
+            log.warn("S3 이미지 삭제 실패: 파일 이름이 null이거나 비어 있습니다.");
+            return; // 삭제 시도를 중단
+        }
         try{
             s3Client.deleteObject(new DeleteObjectRequest(bucket, fileName));
             log.info("삭제성공 : "+fileName);
@@ -161,11 +165,14 @@ public class AwsS3Service {
 
     public List<Question> updateImage(List<Map<String, String>> imageQuestions, List<Question>q, boolean testMode) {
         for(Question question : q) {
-            deleteFile(question.getPr_image_name());
+            String imageName = question.getPr_image_name();
+            if (imageName == null || imageName.isEmpty()) {
+                log.warn("이미지 삭제 건너뜀: 이미지 이름이 null이거나 비어 있음 (Question ID: " + question.getPr_image_name() + ")");
+                continue; // 이미지 삭제 건너뛰기
+            }
+            deleteFile(imageName);
         }
-
         List <Question> questions=uploadfile(imageQuestions, testMode);
         return questions;
     }
-
 }

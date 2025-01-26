@@ -472,9 +472,10 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         List<Map<String, String>> imageQuestions = new ArrayList<>();
 
         for (int i = 1; i <= 5; i++) {
-            String questionPrompt = "Based on the summarized text, generate a new 4-option multiple-choice question that does not overlap with previous questions." +
-                    " Ensure a formal tone similar to Korean college entrance exams. Label the choices as ①, ②, ③, and ④, but do not include the correct answer." +
-                    " Previous Questions: " + contextText + " Summarized Text: " + summarizedText;
+            String questionPrompt = "Based on the summarized text, create a formal tone multiple-choice question numbered " + i +
+                    ". The question should not overlap with the following existing questions: " + contextText +
+                    ". Ensure a formal tone similar to Korean college entrance exams. Label the choices as ①, ②, ③, and ④, but do not include the correct answer. " +
+                    "Summarized Text: " + summarizedText;
 
             ChatCompletionDto questionCompletion = ChatCompletionDto.builder()
                     .model("gpt-4o-mini")
@@ -486,7 +487,6 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
             Map<String, Object> questionResponse = executePrompt(questionCompletion);
             String questionText = (String) questionResponse.get("content");
-
 
             // 이미지 생성 요청
             String imageUrl = generateImage(questionText);
