@@ -56,6 +56,36 @@ public class ChatGPTController {
         this.workBookRepository = workBookRepository;
     }
 
+//    @PostMapping("/processText")
+//    @Operation(summary = "사용자가 보낸 문제 텍스트를 처리하는 api", description = "문제를 전송후 생성. 주의!!최상단 json태그에 message태그 존재.")
+//    @ApiResponse(responseCode = "200", description = "성공",
+//            content = {@Content(schema = @Schema(implementation = QuestionAnswerResponse.class))})
+//    @ApiResponse(responseCode = "400", description = "입력 오류",
+//            content = @Content(schema = @Schema(type = "object", example = "{\"error\": \"클라이언트 오류 메시지\"}")))
+//    @ApiResponse(responseCode = "500", description = "서버 오류",
+//            content = @Content(schema = @Schema(type = "object", example = "{\"error\": \"서버 내부 오류 메시지\"}")))
+//    public ResponseEntity<Map<String, Object>> processText(
+//            @Parameter(name="language",description = "어느나라 언어로 생성할건지 작성ex)english ,korea, Lao language",example="Lao language",required = true)
+//            @RequestParam(name = "language") String language,
+//            @Parameter(name = "category", description = "문제의 카테고리 ex)conversation, object, food, culture", example = "object", required = true)
+//            @RequestParam(name = "category") String category,
+//
+//            @RequestBody @Valid RequestBodys Text) {
+//
+//        try { //전달받은 문제 텍스트 처리하여 서비스 수행
+//            QuestionAnswerResponse response = chatGPTService.processText(Text.getProblemText(),language,category);
+//            return new ResponseEntity<>(Map.of("message", response), HttpStatus.OK);
+//        } catch (IllegalArgumentException e) {
+//            log.error("입력 오류", e.getMessage());
+//            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+//                    .body(Map.of("error", e.getMessage()));
+//        } catch (Exception e) {
+//            log.error("오류 발생", e.getMessage());
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+//                    .body(Map.of("error", "WorkBook 처리 중 오류가 발생했습니다: " + e.getMessage()));
+//        }
+//    }
+
     @PostMapping("/processText")
     @Operation(summary = "사용자가 보낸 문제 텍스트를 처리하는 api", description = "문제를 전송후 생성. 주의!!최상단 json태그에 message태그 존재.")
     @ApiResponse(responseCode = "200", description = "성공",
@@ -67,13 +97,12 @@ public class ChatGPTController {
     public ResponseEntity<Map<String, Object>> processText(
             @Parameter(name="language",description = "어느나라 언어로 생성할건지 작성ex)english ,korea, Lao language",example="Lao language",required = true)
             @RequestParam(name = "language") String language,
-            @Parameter(name = "category", description = "문제의 카테고리 ex)conversation, object, food, culture", example = "object", required = true)
-            @RequestParam(name = "category") String category,
-
+            @Parameter(name = "category", description = "문제의 카테고리 ex)conversation, object, food, culture", example = "object", required = false)
+            @RequestParam(name = "category", required = false, defaultValue = "null") String category,
             @RequestBody @Valid RequestBodys Text) {
 
         try { //전달받은 문제 텍스트 처리하여 서비스 수행
-            QuestionAnswerResponse response = chatGPTService.processText(Text.getProblemText(),language,category);
+            QuestionAnswerResponse response = chatGPTService.processText(Text.getProblemText(), language, category);
             return new ResponseEntity<>(Map.of("message", response), HttpStatus.OK);
         } catch (IllegalArgumentException e) {
             log.error("입력 오류", e.getMessage());
@@ -87,7 +116,8 @@ public class ChatGPTController {
     }
 
 
-//    @ApiResponse(responseCode = "400",description = "잘못된 요청",
+
+    //    @ApiResponse(responseCode = "400",description = "잘못된 요청",
 //            content = {@Content(schema = @Schema(implementation = ErrorResponse.class))})
     @Operation(summary = "일반 재생성 api", description = "파라미터 필요x주의!!최상단 json태그에 message태그 존재.")
     @ApiResponse(responseCode = "200", description = "성공", content = {@Content(schema = @Schema(implementation = QuestionAnswerResponse.class))})
