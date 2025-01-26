@@ -49,8 +49,9 @@ public class ChatGPTServiceImpl implements ChatGPTService {
     }
 
     @Value("${app.test-mode}")
-    private boolean testMode;
+    private boolean testMode; // 테스트 모드 활성화 여부
 
+    // GPT, DALL-E 요청을 처리하는 메소드
     private Map<String, Object> executePrompt(Object requestDto) {
         Map<String, Object> resultMap = new HashMap<>();
         HttpHeaders headers = chatGPTConfig.httpHeaders();
@@ -59,6 +60,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         String promptUrl;
         String model;
 
+        // 요청 유형에 따라 URL 및 모델 선택
         if (requestDto instanceof DalleRequestDto) {
             promptUrl = chatGPTConfig.getDalleApiUrl();
             model = ((DalleRequestDto) requestDto).getModel();
@@ -69,12 +71,13 @@ public class ChatGPTServiceImpl implements ChatGPTService {
             throw new IllegalArgumentException("Unsupported request type");
         }
 
+        // OpenAI API 호출 및 응답 처리
         ResponseEntity<String> response = chatGPTConfig
                 .restTemplate()
                 .exchange(promptUrl, HttpMethod.POST, requestEntity, String.class);
         try {
             ObjectMapper om = new ObjectMapper();
-
+            // JSON 파싱 옵션 설정
             om.configure(JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS, true);
             om.configure(JsonParser.Feature.ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER, true);
             om.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -114,7 +117,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
     }
 
 
-    @Override
+    @Override //텍스트를 입력받아 문제 텍스트를 처리하고 답변을 생성하는 메서드
     public QuestionAnswerResponse processText(String problemText,String language, String category) throws IOException {
 
         problemText = cleanInputText(problemText); //특수문자 정제 메소드
@@ -195,9 +198,9 @@ public class ChatGPTServiceImpl implements ChatGPTService {
     private List<Map<String, String>> generateImageQuestions(String summarizedText, String language) {
         List<Map<String, String>> imageQuestions = new ArrayList<>();
         for (int i = 1; i <= 5; i++) {
-            String questionPrompt = "Using the summarized text, create one 4-option multiple-choice question without an introduction. Use a formal tone akin to Korean college entrance exam questions." +
-                    " Label the choices as ①, ②, ③, and ④, but do not include the correct answer. If '*' is needed, use it sparingly and avoid emphasizing content with it. " + "Create a problem using " + language + ". " + summarizedText +
-                    ". Create a minimalist, flat design. Avoid any modern technology or futuristic elements in the image. Please generate an image without any language included in it";
+            String questionPrompt =  "Using the summarized text, create a formal tone multiple-choice question numbered " + i +
+                    " without an introduction. The question should have 4 answer options labeled as ①, ②, ③, and ④. Do not include the correct answer or use any special characters like '*'." +
+                    " Create a problem in " + language + " using the following summarized text: " + summarizedText ;
 
             ChatCompletionDto questionCompletion = ChatCompletionDto.builder()
                     .model("gpt-4o-mini")
@@ -208,9 +211,6 @@ public class ChatGPTServiceImpl implements ChatGPTService {
                     .build();
             Map<String, Object> questionResponse = executePrompt(questionCompletion);
             String questionText = (String) questionResponse.get("content");
-
-            // 생성된 문제 텍스트를 정제하는 로직 추가
-            questionText = cleanQuestionText(questionText, i);
 
             String imageUrl = generateImage(questionText);
 
@@ -234,22 +234,6 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         // 따옴표 이스케이프 처리
         input = input.replace("\"", "\\\"");
         return input;
-    }
-
-
-    private String cleanQuestionText(String questionText, int questionNumber) {
-        // 문제 번호로 시작하는지 확인하고, 그렇지 않으면 추가
-        if (!questionText.trim().startsWith(questionNumber + ".")) {
-            questionText = questionNumber + ". " + questionText.trim();
-        }
-
-        // 여러 문제가 포함된 경우 첫 번째 문제만 추출
-        int nextQuestionIndex = questionText.indexOf((questionNumber + 1) + ".");
-        if (nextQuestionIndex != -1) {
-            questionText = questionText.substring(0, nextQuestionIndex).trim();
-        }
-
-        return questionText;
     }
 
 
@@ -279,7 +263,8 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         // OpenAI API 요청 생성
         DalleRequestDto dalleRequest = DalleRequestDto.builder()
                 .model("dall-e-3")
-                .prompt(description)
+                .prompt(description + "Create an image based on the following minimalist description. The design must be flat, simple, and free of modern or futuristic elements." +
+                        " Avoid using text or language in the image. Design with a formal tone suitable for a Korean college exam. Description: ")
                 .build();
 
         Map<String, Object> imageResponse = executePrompt(dalleRequest);
@@ -438,8 +423,6 @@ public class ChatGPTServiceImpl implements ChatGPTService {
             Map<String, Object> questionResponse = executePrompt(questionCompletion);
             String questionText = (String) questionResponse.get("content");
 
-            // 문제 텍스트 정제
-            questionText = cleanQuestionText(questionText, i);
 
             // 이미지 생성 요청
             String imageUrl = generateImage(questionText);
@@ -566,8 +549,11 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         List<Map<String, String>> imageQuestions = new ArrayList<>();
         for (int i = 1; i <= 5; i++) {
             String questionPrompt =
-                    "Using the summarized text, create one 4-option multiple-choice question without an introduction. Use a formal tone akin to Korean college entrance exam questions." +
-                    "Label the choices as ①, ②, ③, and ④, but do not include the correct answer. If '*' is needed, use it sparingly and avoid emphasizing content with it." + "Please create the problem in " + language + " and provide options ①, ②, ③, and ④ in Korean." + categoryPrompt + "Create a minimalist, flat design. Avoid any modern technology or futuristic elements in the image. Please generate an image without any language included in it";
+                    "Using the summarized text, create a single 4-option multiple-choice question numbered " + i +
+                            " without any introductory text. Ensure the question is written in a formal tone, similar to Korean college entrance exam questions. " +
+                            "Label the answer choices as ①, ②, ③, and ④, and do not include the correct answer. Avoid using special characters like '*' for emphasis. " +
+                            "Please write the question in " + language + " and provide the options ①, ②, ③, and ④ in Korean." + categoryPrompt;
+
 
             ChatCompletionDto questionCompletion = ChatCompletionDto.builder()
                     .model("gpt-4o-mini")
@@ -580,7 +566,6 @@ public class ChatGPTServiceImpl implements ChatGPTService {
             Map<String, Object> questionResponse = executePrompt(questionCompletion);
             String questionText = (String) questionResponse.get("content");
 
-            questionText = cleanQuestionText(questionText, i);
 
             String imageUrl = generateImage(questionText);
 
