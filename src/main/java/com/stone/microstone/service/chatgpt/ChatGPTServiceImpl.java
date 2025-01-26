@@ -212,6 +212,8 @@ public class ChatGPTServiceImpl implements ChatGPTService {
             Map<String, Object> questionResponse = executePrompt(questionCompletion);
             String questionText = (String) questionResponse.get("content");
 
+            questionText += "\n";
+
             String imageUrl = generateImage(questionText);
 
             Map<String, String> questionWithImage = new HashMap<>();
@@ -511,16 +513,16 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         String prompt;
         switch (category.toLowerCase()) {
             case "conversation":
-                prompt = "Create multiple-choice questions related to common Korean conversations in daily life. Ensure the questions reflect realistic scenarios such as greetings, ordering food, asking for directions, or small talk. ";
+                prompt = "Create multiple-choice questions related to common Korean conversations in daily life. Focus on realistic scenarios such as greetings, ordering food, asking for directions, or making small talk. For example, questions could ask which phrase is appropriate in a given situation, or what the appropriate response would be.";
                 break;
             case "object":
-                prompt = "Generate multiple-choice questions about popular Korean objects or artifacts that foreign learners might encounter in everyday life. Focus on both traditional items such as hanbok, Korean ceramics, and cultural symbols, as well as common items found in daily life like clothes, beds, computers, desks, and other household objects. Ensure the questions are relevant to typical experiences and accessible to learners.";
+                prompt = "Generate multiple-choice questions about Korean objects or artifacts that foreign learners might encounter in everyday life. The questions should ask for the Korean name of common objects or traditional items such as hanbok, Korean ceramics, and cultural symbols, as well as everyday items like furniture, clothes, or gadgets.";
                 break;
             case "food":
-                prompt = "Create multiple-choice quiz questions about Korean food culture, including common dishes, eating etiquette, and regional specialties. Ensure the questions are based on typical experiences, such as dining at a Korean restaurant or cooking traditional dishes. ";
+                prompt = "Create multiple-choice quiz questions about Korean food culture. Include common dishes, eating etiquette, and regional specialties. Focus on everyday food items, such as popular street food or dishes found in Korean homes, not necessarily traditional ones.";
                 break;
             case "culture":
-                prompt = "Generate multiple-choice questions about Korean culture, including popular traditions, festivals, and modern practices that are commonly experienced in everyday life. The questions should focus on the most accessible cultural elements like Chuseok, Lunar New Year, or Korean pop culture.";
+                prompt = "Generate multiple-choice questions about Korean culture, including popular traditions, festivals, and modern practices. The questions should cover well-known cultural elements, such as holidays like Chuseok or Lunar New Year, as well as aspects of contemporary Korean pop culture.";
                 break;
             default:
                 throw new IllegalArgumentException("Invalid category: " + category);
@@ -551,8 +553,9 @@ public class ChatGPTServiceImpl implements ChatGPTService {
             String questionPrompt =
                     "Using the summarized text, create a single 4-option multiple-choice question numbered " + i +
                             " without any introductory text. Ensure the question is written in a formal tone, similar to Korean college entrance exam questions. " +
+                            "The question should not be similar to any previous questions generated. Ensure variety by addressing different aspects of the topic, using different perspectives, or rephrasing the concepts. " +
                             "Label the answer choices as ①, ②, ③, and ④, and do not include the correct answer. Avoid using special characters like '*' for emphasis. " +
-                            "Please write the question in " + language + " and provide the options ①, ②, ③, and ④ in Korean." + categoryPrompt;
+                            "Please write the question in " + language + " and provide the options ①, ②, ③, and ④ in Korean." + categoryPrompt ;
 
 
             ChatCompletionDto questionCompletion = ChatCompletionDto.builder()
@@ -566,6 +569,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
             Map<String, Object> questionResponse = executePrompt(questionCompletion);
             String questionText = (String) questionResponse.get("content");
 
+            questionText += "\n";
 
             String imageUrl = generateImage(questionText);
 
@@ -574,13 +578,15 @@ public class ChatGPTServiceImpl implements ChatGPTService {
             questionWithImage.put("imageUrl", imageUrl);
 
             imageQuestions.add(questionWithImage);
+
+
         }
         return imageQuestions;
     }
 
     private String generateTextQuestionsByCategory(String categoryPrompt, String language) {
         String questionPrompt =
-                "Using the summarized text, generate 10 multiple-choice questions numbered 6 through 15. Exclude any introductory text. Use a formal tone in line with Korean college entrance exam style." +
+                "Using the summarized text, generate 10 multiple-choice questions numbered 6 through 15. Exclude any introductory text. Use a formal tone in line with Korean college entrance exam style." + " Ensure that the questions are distinct and avoid repeating similar concepts or questions. " +
                 " Label the options as ①, ②, ③, and ④, ensuring no answers are provided. If '*' is necessary, use it minimally and not for emphasis. " + "Please create the problem in " + language + " and provide options ①, ②, ③, and ④ in Korean. " + categoryPrompt;
 
         ChatCompletionDto textCompletion = ChatCompletionDto.builder()
