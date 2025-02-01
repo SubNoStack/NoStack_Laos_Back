@@ -146,11 +146,9 @@ public class ChatGPTController {
     @ApiResponse(responseCode = "200", description = "성공", content = {@Content(schema = @Schema(implementation = QuestionAnswerResponse.class))})
     @ApiResponse(responseCode = "500", description = "서버오류", content = {@Content(schema = @Schema(implementation = ErrorResponse.class))})
     @PostMapping("/reCategorytext")
-    public ResponseEntity<Object> reCategoryText(
-            @RequestParam(name = "category") String category,
-            @RequestParam(name = "language", required = true) String language) {
+    public ResponseEntity<Object> reCategoryText() {
         try {
-            QuestionAnswerResponse response = chatGPTService.reCategoryWorkBook(category, language);
+            QuestionAnswerResponse response = chatGPTService.reCategoryWorkBook();
             if (response == null) {
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                         .body(Map.of("error", "재생성된 카테고리 문제집이 없습니다."));

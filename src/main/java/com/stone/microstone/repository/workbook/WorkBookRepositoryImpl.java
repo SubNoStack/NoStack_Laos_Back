@@ -56,7 +56,6 @@ public class WorkBookRepositoryImpl implements WorkBookRepository {
     }
 
 
-
     //전체 문제집정보를 삭제하는 메소드
     public void deleteAll() {
         em.createQuery("DELETE FROM WorkBook").executeUpdate();
