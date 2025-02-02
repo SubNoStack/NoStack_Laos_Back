@@ -572,102 +572,6 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         return (String) textQuestionsResponse.get("content");
     }
 
-
-    @Override
-    public QuestionAnswerResponse reCategoryWorkBook() throws IOException {
-        // 마지막 워크북 조회
-
-        Optional<WorkBook> optionalLastWorkBook = workBookRepository.findLastWorkBook();
-        WorkBook lastWorkBook = optionalLastWorkBook.orElseThrow(() -> new RuntimeException("기존 문제집이 존재하지 않습니다."));
-
-        // 마지막 문제집의 category와 language 가져오기
-        String category = lastWorkBook.getWb_category();
-        String language = lastWorkBook.getWb_language();
-        String contextText = lastWorkBook.getWb_content();
-
-        // category와 language가 유효한지 확인
-        if (category == null || category.trim().isEmpty() || language == null || language.trim().isEmpty()) {
-            throw new IllegalArgumentException("카테고리 또는 언어 정보가 유효하지 않습니다.");
-        }
-
-        if (contextText == null || contextText.trim().isEmpty()) {
-            throw new IllegalArgumentException("문제를 재생성할 데이터가 부족합니다.");
-        }
-
-        // generateCategoryQuestions를 호출하여 새로운 문제 생성
-        QuestionAnswerResponse newQuestionsResponse = generateCategoryQuestions(category, language);
-
-        // 새로운 문제와 답변을 가져옴
-        String newQuestion = newQuestionsResponse.getTextQuestions();
-        List<Map<String, String>> imageQuestions = newQuestionsResponse.getImageQuestions();
-        String textQuestions = newQuestionsResponse.getTextQuestions();
-
-        // imageQuestions와 textQuestions가 유효한지 확인
-        if ((imageQuestions == null || imageQuestions.isEmpty()) && (textQuestions == null || textQuestions.trim().isEmpty())) {
-            throw new RuntimeException("문제 생성 실패: imageQuestions 또는 textQuestions가 비어 있습니다.");
-        }
-
-        // 답변 생성
-        Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions);
-        if (answerResult == null || answerResult.isEmpty()) {
-            throw new RuntimeException("답변 생성 실패");
-        }
-
-        String answerText = (String) answerResult.get("content");
-
-        // 새로운 문제집 저장
-        WorkBook savedWorkBook = workBookService.findLastWorkBook(newQuestion, answerText, imageQuestions, textQuestions, testMode);
-
-        return new QuestionAnswerResponse(
-                savedWorkBook.getWb_id(),
-                savedWorkBook.getWb_title(),
-                newQuestion,
-                answerText,
-                imageQuestions,
-                textQuestions
-        );
-    }
-
-//    private Map<String, Object> regenerateCategoryQuestions(String category, String language) throws IOException {
-//        log.debug("카테고리 문제 생성 시작: " + category);
-//
-//        String prompt;
-//        switch (category.toLowerCase()) {
-//            case "conversation":
-//                prompt = "Create multiple-choice questions related to common Korean conversations in daily life. Focus on realistic scenarios such as greetings, ordering food, asking for directions, or making small talk. For example, questions could ask which phrase is appropriate in a given situation, or what the appropriate response would be.";
-//                break;
-//            case "object":
-//                prompt = "Generate multiple-choice questions about Korean objects or artifacts that foreign learners might encounter in everyday life. The questions should ask for the Korean name of common objects or traditional items such as hanbok, Korean ceramics, and cultural symbols, as well as everyday items like furniture, clothes, or gadgets.";
-//                break;
-//            case "food":
-//                prompt = "Create multiple-choice quiz questions about Korean food culture. Include common dishes, eating etiquette, and regional specialties. Focus on everyday food items, such as popular street food or dishes found in Korean homes, not necessarily traditional ones.";
-//                break;
-//            case "culture":
-//                prompt = "Generate multiple-choice questions about Korean culture, including popular traditions, festivals, and modern practices. The questions should cover well-known cultural elements, such as holidays like Chuseok or Lunar New Year, as well as aspects of contemporary Korean pop culture.";
-//                break;
-//            default:
-//                throw new IllegalArgumentException("Invalid category: " + category);
-//        }
-//        // 이미지 문제 생성
-//        List<Map<String, String>> imageQuestions = regenerateImageQuestionsByCategory(prompt, language);
-//
-//        // 텍스트 문제 생성
-//        String textQuestions = regenerateTextQuestionsByCategory(prompt, language);
-//
-//        // QuestionAnswerResponse 객체 반환
-//        QuestionAnswerResponse response = new QuestionAnswerResponse();
-//        response.setImageQuestions(imageQuestions);
-//        response.setTextQuestions(textQuestions);
-//
-//        Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions);
-//        String answerText = (String) answerResult.get("content");
-//
-//        List<Question> q = awsS3Service.uploadfile(imageQuestions, testMode);
-//
-//        return workBookService.getWorkBookwithnosum(textQuestions, answerText, imageQuestions, q, language, category);
-//    }
-
-
     @Override
     public QuestionAnswerResponse generateCategoryQuestions(String category, String language) throws IOException {
         log.debug("카테고리 문제 생성 시작: " + category);
@@ -821,11 +725,114 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         return (String) textQuestionsResponse.get("content");
     }
 
+    @Override
+    public QuestionAnswerResponse reCategoryWorkBook() throws IOException {
+        // 마지막 워크북 조회
+
+        Optional<WorkBook> optionalLastWorkBook = workBookRepository.findLastWorkBook();
+        WorkBook lastWorkBook = optionalLastWorkBook.orElseThrow(() -> new RuntimeException("기존 문제집이 존재하지 않습니다."));
+
+        // 마지막 문제집의 category와 language 가져오기
+        String category = lastWorkBook.getWb_category();
+        String language = lastWorkBook.getWb_language();
+        String contextText = lastWorkBook.getWb_content();
+
+        // category와 language가 유효한지 확인
+        if (category == null || category.trim().isEmpty() || language == null || language.trim().isEmpty()) {
+            throw new IllegalArgumentException("카테고리 또는 언어 정보가 유효하지 않습니다.");
+        }
+
+        if (contextText == null || contextText.trim().isEmpty()) {
+            throw new IllegalArgumentException("문제를 재생성할 데이터가 부족합니다.");
+        }
+
+        // regenerateCategoryQuestions를 호출하여 새로운 문제 생성
+        QuestionAnswerResponse newQuestionsResponse = regenerateCategoryQuestions(category, language, contextText);
+
+        // 새로운 문제와 답변을 가져옴
+        String newQuestion = newQuestionsResponse.getTextQuestions();
+        List<Map<String, String>> imageQuestions = newQuestionsResponse.getImageQuestions();
+        String textQuestions = newQuestionsResponse.getTextQuestions();
+
+        // imageQuestions와 textQuestions가 유효한지 확인
+        if ((imageQuestions == null || imageQuestions.isEmpty()) && (textQuestions == null || textQuestions.trim().isEmpty())) {
+            throw new RuntimeException("문제 생성 실패: imageQuestions 또는 textQuestions가 비어 있습니다.");
+        }
+
+        // 답변 생성
+        Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions);
+        if (answerResult == null || answerResult.isEmpty()) {
+            throw new RuntimeException("답변 생성 실패");
+        }
+
+        String answerText = (String) answerResult.get("content");
+
+        // 새로운 문제집 저장
+        WorkBook savedWorkBook = workBookService.findLastWorkBook(newQuestion, answerText, imageQuestions, textQuestions, testMode);
+
+        return new QuestionAnswerResponse(
+                savedWorkBook.getWb_id(),
+                savedWorkBook.getWb_title(),
+                newQuestion,
+                answerText,
+                imageQuestions,
+                textQuestions
+        );
+    }
+
+    private QuestionAnswerResponse regenerateCategoryQuestions(String category, String language, String contextText) throws IOException {
+        log.debug("카테고리 문제 재생성 시작: " + category);
+
+        String prompt;
+        switch (category.toLowerCase()) {
+            case "conversation":
+                prompt = "Create multiple-choice questions related to common Korean conversations in daily life. Focus on realistic scenarios such as greetings, ordering food, asking for directions, or making small talk. For example, questions could ask which phrase is appropriate in a given situation, or what the appropriate response would be.";
+                break;
+            case "object":
+                prompt = "Generate multiple-choice questions about Korean objects or artifacts that foreign learners might encounter in everyday life. The questions should ask for the Korean name of common objects or traditional items such as hanbok, Korean ceramics, and cultural symbols, as well as everyday items like furniture, clothes, or gadgets.";
+                break;
+            case "food":
+                prompt = "Create multiple-choice quiz questions about Korean food culture. Include common dishes, eating etiquette, and regional specialties. Focus on everyday food items, such as popular street food or dishes found in Korean homes, not necessarily traditional ones.";
+                break;
+            case "culture":
+                prompt = "Generate multiple-choice questions about Korean culture, including popular traditions, festivals, and modern practices. The questions should cover well-known cultural elements, such as holidays like Chuseok or Lunar New Year, as well as aspects of contemporary Korean pop culture.";
+                break;
+            default:
+                throw new IllegalArgumentException("Invalid category: " + category);
+        }
+
+        // 이전 문제를 포함한 프롬프트 생성
+        String fullPrompt =  prompt + "\n\n" +
+                "[The following questions have already been generated. Please ensure the new questions are distinct and not similar to these: \n" +
+                contextText + "]";
+
+        // 이미지 문제 생성
+        List<Map<String, String>> imageQuestions = regenerateImageQuestionsByCategory(fullPrompt, language);
+
+        // 텍스트 문제 생성
+        String textQuestions = regenerateTextQuestionsByCategory(fullPrompt, language);
+
+        // QuestionAnswerResponse 객체 반환
+        QuestionAnswerResponse response = new QuestionAnswerResponse();
+        response.setImageQuestions(imageQuestions);
+        response.setTextQuestions(textQuestions);
+
+        Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions);
+        String answerText = (String) answerResult.get("content");
+
+        List<Question> q = awsS3Service.uploadfile(imageQuestions, testMode);
+
+        return workBookService.getWorkBookwithnosum(textQuestions, answerText, imageQuestions, q, language, category);
+    }
+
+
 
     private String regenerateTextQuestionsByCategory(String categoryPrompt, String language) {
         String questionPrompt =
-                "Using the summarized text, generate 10 multiple-choice questions numbered 6 through 15. Exclude any introductory text. Use a formal tone in line with Korean college entrance exam style." + " Ensure that the questions are distinct and avoid repeating similar concepts or questions. " +
-                        " Label the options as ①, ②, ③, and ④, ensuring no answers are provided. If '*' is necessary, use it minimally and not for emphasis. " + "Please create the problem in " + language + " and provide options ①, ②, ③, and ④ in Korean. " + categoryPrompt;
+                "Using the summarized text, generate 10 multiple-choice questions numbered 6 through 15. Exclude any introductory text. Use a formal tone in line with Korean college entrance exam style." +
+                        " Ensure that the questions are distinct and avoid repeating similar concepts or questions. " +
+                        " Label the options as ①, ②, ③, and ④, ensuring no answers are provided. If '*' is necessary, use it minimally and not for emphasis. " +
+                        "Please create the problem in " + language + " and provide options ①, ②, ③, and ④ in Korean. " + categoryPrompt;
 
         ChatCompletionDto textCompletion = ChatCompletionDto.builder()
                 .model("gpt-4o-mini")
@@ -841,13 +848,27 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
     private List<Map<String, String>> regenerateImageQuestionsByCategory(String categoryPrompt, String language) {
         List<Map<String, String>> imageQuestions = new ArrayList<>();
+        List<String> previousQuestions = new ArrayList<>(); // 이전에 생성된 문제를 저장할 리스트
+
         for (int i = 1; i <= 5; i++) {
+            // 이전 문제들을 프롬프트에 추가
+            String previousQuestionsPrompt = "";
+            if (!previousQuestions.isEmpty()) {
+                previousQuestionsPrompt = " The following questions have already been generated. Please ensure the new question is different from these: \n";
+                for (String prevQuestion : previousQuestions) {
+                    previousQuestionsPrompt += "- " + prevQuestion + "\n";
+                }
+            }
             String questionPrompt =
                     "Using the summarized text, create a single 4-option multiple-choice question numbered " + i +
-                            ". without any introductory text. Ensure the question is written in a formal tone, similar to Korean college entrance exam questions. " +
-                            "The question should not be similar to any previous questions generated. Ensure variety by addressing different aspects of the topic, using different perspectives, or rephrasing the concepts. " +
+                            ". The question should be written in a formal tone, similar to Korean college entrance exam questions. " +
+                            "Ensure the question is clear, concise, and directly related to the summarized text. " +
+                            "The question should not be similar to any previous questions generated. To ensure variety, address different aspects of the topic, use unique perspectives, or rephrase the concepts creatively. " +
                             "Label the answer choices as ①, ②, ③, and ④, and do not include the correct answer. Avoid using special characters like '*' for emphasis. " +
-                            "Please write the question in " + language + " and provide the options ①, ②, ③, and ④ in Korean." + categoryPrompt;
+                            "Please write the question in " + language + " and provide the options ①, ②, ③, and ④ in Korean. " +
+                            "Here is the summarized text for reference: " + categoryPrompt +
+                            "The following questions have already been generated. Please ensure the new question is distinct and not similar to these: \n" + previousQuestionsPrompt +
+                            "Ensure the new question is unique, engaging, and tests a different aspect of the topic compared to the previous questions.";
 
 
             ChatCompletionDto questionCompletion = ChatCompletionDto.builder()
@@ -861,6 +882,21 @@ public class ChatGPTServiceImpl implements ChatGPTService {
             Map<String, Object> questionResponse = executePrompt(questionCompletion);
             String questionText = (String) questionResponse.get("content");
 
+            // 이전 문제와 유사한지 확인 (간단한 예시로 포함 여부만 확인)
+            boolean isSimilar = false;
+            for (String prevQuestion : previousQuestions) {
+                if (questionText.contains(prevQuestion) || prevQuestion.contains(questionText)) {
+                    isSimilar = true;
+                    break;
+                }
+            }
+
+            if (isSimilar) {
+                i--; // 유사한 문제가 있다면 다시 시도
+                continue;
+            }
+
+            previousQuestions.add(questionText); // 새로운 문제를 리스트에 추가
             questionText += "\n";
 
             String imageUrl = generateImage(questionText);
