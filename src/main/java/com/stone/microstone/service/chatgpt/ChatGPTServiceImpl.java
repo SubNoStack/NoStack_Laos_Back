@@ -196,10 +196,21 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
     private List<Map<String, String>> generateImageQuestions(String summarizedText, String language) {
         List<Map<String, String>> imageQuestions = new ArrayList<>();
+        List<String> previousQuestions = new ArrayList<>(); // 이전에 생성된 문제를 저장할 리스트
+
         for (int i = 1; i <= 5; i++) {
+            // 이전 문제들을 프롬프트에 추가
+            String previousQuestionsPrompt = "";
+            if (!previousQuestions.isEmpty()) {
+                previousQuestionsPrompt = " The following questions have already been generated. Please ensure the new question is different from these: \n";
+                for (String prevQuestion : previousQuestions) {
+                    previousQuestionsPrompt += "- " + prevQuestion + "\n";
+                }
+            }
             String questionPrompt = "Using the summarized text, create a formal tone multiple-choice question numbered " + i +
                     " without an introduction. The question should have 4 answer options labeled as ①, ②, ③, and ④. Do not include the correct answer or use any special characters like '*'." +
-                    " Create a problem in " + language + " using the following summarized text: " + summarizedText;
+                    " Create a problem in " + language + " using the following summarized text: " + summarizedText +
+                    previousQuestionsPrompt + " Ensure the new question is distinct and not similar to the ones listed above.";
 
             ChatCompletionDto questionCompletion = ChatCompletionDto.builder()
                     .model("gpt-4o-mini")
@@ -211,6 +222,21 @@ public class ChatGPTServiceImpl implements ChatGPTService {
             Map<String, Object> questionResponse = executePrompt(questionCompletion);
             String questionText = (String) questionResponse.get("content");
 
+            // 이전 문제와 유사한지 확인 (간단한 예시로 포함 여부만 확인)
+            boolean isSimilar = false;
+            for (String prevQuestion : previousQuestions) {
+                if (questionText.contains(prevQuestion) || prevQuestion.contains(questionText)) {
+                    isSimilar = true;
+                    break;
+                }
+            }
+
+            if (isSimilar) {
+                i--; // 유사한 문제가 있다면 다시 시도
+                continue;
+            }
+
+            previousQuestions.add(questionText); // 새로운 문제를 리스트에 추가
             questionText += "\n";
 
             String imageUrl = generateImage(questionText);
@@ -468,12 +494,23 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
     private List<Map<String, String>> regenerateImageQuestions(String summarizedText, String contextText) {
         List<Map<String, String>> imageQuestions = new ArrayList<>();
+        List<String> previousQuestions = new ArrayList<>(); // 이전에 생성된 문제를 저장할 리스트
+
 
         for (int i = 1; i <= 5; i++) {
+            // 이전 문제들을 프롬프트에 추가
+            String previousQuestionsPrompt = "";
+            if (!previousQuestions.isEmpty()) {
+                previousQuestionsPrompt = " The following questions have already been generated. Please ensure the new question is different from these: \n";
+                for (String prevQuestion : previousQuestions) {
+                    previousQuestionsPrompt += "- " + prevQuestion + "\n";
+                }
+            }
             String questionPrompt = "Based on the summarized text, create a formal tone multiple-choice question numbered " + i +
                     ". The question should not overlap with the following existing questions: " + contextText +
                     ". Ensure a formal tone similar to Korean college entrance exams. Label the choices as ①, ②, ③, and ④, but do not include the correct answer. " +
-                    "Summarized Text: " + summarizedText;
+                    "Summarized Text: " + summarizedText +
+                    previousQuestionsPrompt + " Ensure the new question is distinct and not similar to the ones listed above.";
 
             ChatCompletionDto questionCompletion = ChatCompletionDto.builder()
                     .model("gpt-4o-mini")
@@ -485,6 +522,23 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
             Map<String, Object> questionResponse = executePrompt(questionCompletion);
             String questionText = (String) questionResponse.get("content");
+
+            // 이전 문제와 유사한지 확인 (간단한 예시로 포함 여부만 확인)
+            boolean isSimilar = false;
+            for (String prevQuestion : previousQuestions) {
+                if (questionText.contains(prevQuestion) || prevQuestion.contains(questionText)) {
+                    isSimilar = true;
+                    break;
+                }
+            }
+
+            if (isSimilar) {
+                i--; // 유사한 문제가 있다면 다시 시도
+                continue;
+            }
+
+            previousQuestions.add(questionText); // 새로운 문제를 리스트에 추가
+            questionText += "\n";
 
             // 이미지 생성 요청
             String imageUrl = generateImage(questionText);
@@ -529,10 +583,15 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         // 마지막 문제집의 category와 language 가져오기
         String category = lastWorkBook.getWb_category();
         String language = lastWorkBook.getWb_language();
+        String contextText = lastWorkBook.getWb_content();
 
         // category와 language가 유효한지 확인
         if (category == null || category.trim().isEmpty() || language == null || language.trim().isEmpty()) {
             throw new IllegalArgumentException("카테고리 또는 언어 정보가 유효하지 않습니다.");
+        }
+
+        if (contextText == null || contextText.trim().isEmpty()) {
+            throw new IllegalArgumentException("문제를 재생성할 데이터가 부족합니다.");
         }
 
         // generateCategoryQuestions를 호출하여 새로운 문제 생성
@@ -652,13 +711,24 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
     private List<Map<String, String>> generateImageQuestionsByCategory(String categoryPrompt, String language) {
         List<Map<String, String>> imageQuestions = new ArrayList<>();
+        List<String> previousQuestions = new ArrayList<>(); // 이전에 생성된 문제를 저장할 리스트
+
         for (int i = 1; i <= 5; i++) {
+            // 이전 문제들을 프롬프트에 추가
+            String previousQuestionsPrompt = "";
+            if (!previousQuestions.isEmpty()) {
+                previousQuestionsPrompt = " The following questions have already been generated. Please ensure the new question is different from these: \n";
+                for (String prevQuestion : previousQuestions) {
+                    previousQuestionsPrompt += "- " + prevQuestion + "\n";
+                }
+            }
             String questionPrompt =
                     "Using the summarized text, create a single 4-option multiple-choice question numbered " + i +
                             ". without any introductory text. Ensure the question is written in a formal tone, similar to Korean college entrance exam questions. " +
                             "The question should not be similar to any previous questions generated. Ensure variety by addressing different aspects of the topic, using different perspectives, or rephrasing the concepts. " +
                             "Label the answer choices as ①, ②, ③, and ④, and do not include the correct answer. Avoid using special characters like '*' for emphasis. " +
-                            "Please write the question in " + language + " and provide the options ①, ②, ③, and ④ in Korean." + categoryPrompt;
+                            "Please write the question in " + language + " and provide the options ①, ②, ③, and ④ in Korean." + categoryPrompt +
+                            previousQuestionsPrompt + " Ensure the new question is distinct and not similar to the ones listed above.";
 
 
             ChatCompletionDto questionCompletion = ChatCompletionDto.builder()
@@ -672,6 +742,21 @@ public class ChatGPTServiceImpl implements ChatGPTService {
             Map<String, Object> questionResponse = executePrompt(questionCompletion);
             String questionText = (String) questionResponse.get("content");
 
+            // 이전 문제와 유사한지 확인 (간단한 예시로 포함 여부만 확인)
+            boolean isSimilar = false;
+            for (String prevQuestion : previousQuestions) {
+                if (questionText.contains(prevQuestion) || prevQuestion.contains(questionText)) {
+                    isSimilar = true;
+                    break;
+                }
+            }
+
+            if (isSimilar) {
+                i--; // 유사한 문제가 있다면 다시 시도
+                continue;
+            }
+
+            previousQuestions.add(questionText); // 새로운 문제를 리스트에 추가
             questionText += "\n";
 
             String imageUrl = generateImage(questionText);
