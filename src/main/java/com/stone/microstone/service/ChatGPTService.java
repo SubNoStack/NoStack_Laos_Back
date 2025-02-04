@@ -10,8 +10,8 @@ import java.util.Map;
 public interface ChatGPTService {
     Map<String, Object> summarizeText(String text, String language);
     Map<String, Object> generateQuestion(String summarizedText, String language);
-    Map<String, Object> regenerateQuestion(String summarizedText, String contextText);
-    Map<String, Object> generateAnswer(List<Map<String, String>> imageQuestions, String textQuestions);
+    Map<String, Object> regenerateQuestion(String summarizedText, String contextText, String language);
+    Map<String, Object> generateAnswer(List<Map<String, String>> imageQuestions, String textQuestions, String language);
 
     QuestionAnswerResponse processText(String problemText, String language, String category) throws IOException;
 
