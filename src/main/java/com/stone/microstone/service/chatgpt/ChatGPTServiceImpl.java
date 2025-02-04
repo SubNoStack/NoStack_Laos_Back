@@ -138,7 +138,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         log.debug("생성된 질문: " + textQuestions);
 
         // 3단계: 질문으로 답변 생성
-        Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions);
+        Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions, language);
         String answerText = (String) answerResult.get("content");
         if (answerText == null || answerText.trim().isEmpty()) {
             throw new IllegalArgumentException("생성된 답변이 없습니다.");
@@ -187,7 +187,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         result.put("textQuestions", textQuestions);
 
         // 답변 생성 메서드 호출
-        Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions);
+        Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions, language);
         result.put("answers", answerResult);
 
         return result;
@@ -368,7 +368,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 //    }
 
     @Override
-    public Map<String, Object> generateAnswer(List<Map<String, String>> imageQuestions, String textQuestions) {
+    public Map<String, Object> generateAnswer(List<Map<String, String>> imageQuestions, String textQuestions, String language) {
         if ((imageQuestions == null || imageQuestions.isEmpty()) && (textQuestions == null || textQuestions.trim().isEmpty())) {
             log.error("질문 텍스트가 없습니다.");
             throw new IllegalArgumentException("질문 텍스트가 없습니다.");
@@ -381,13 +381,20 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
         String combinedQuestions = "문제 (1-5번):\n" + imageQuestionsString + "\n\n문제 (6-15번):\n" + textQuestions;
 
+        String prompt = "Provide the exact answers to the generated questions (1–15). "
+                + "Format each answer as follows:\n"
+                + "1. " + getCorrectAnswer(language) + " [Actual correct answer]\n"
+                + getExplanation(language) + " [Explanation must be written in " + language + "]\n\n"
+                + "If a special character is needed, use it sparingly and avoid using it for emphasis. "
+                + "Do not include any special characters such as asterisks (*) in the answers or explanations. "
+                + "Generate answers based on the given question.\n\n"
+                + combinedQuestions;
+
         ChatCompletionDto chatCompletionDto = ChatCompletionDto.builder()
                 .model("gpt-4o-mini")
                 .messages(List.of(ChatRequestMsgDto.builder()
                         .role("user")
-                        .content("Provide the exact answers to the generated questions (1–15) along with detailed explanations limited to four lines each. If a special character is needed, use it sparingly and avoid using it for emphasis." +
-                                " Do not include any special characters such as asterisks (*) in the answers or explanations " +
-                                " based on the given question." + combinedQuestions)
+                        .content(prompt)
                         .build()))
                 .build();
         log.debug("답변 생성 정보={}", chatCompletionDto.toString());
@@ -399,6 +406,32 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         }
 
         return response;
+    }
+
+    private String getCorrectAnswer(String language) {
+        switch (language.toLowerCase()) {
+            case "korea":
+                return "정답:";
+            case "english":
+                return "Correct Answer:";
+            case "Lao language":
+                return "ຄຳອະທິບາຍ:";
+            default:
+                return "Correct Answer:"; // 기본값 (영어)
+        }
+    }
+
+    private String getExplanation(String language) {
+        switch (language.toLowerCase()) {
+            case "korea":
+                return "해설:";
+            case "english":
+                return "Explanation:";
+            case "Lao language":
+                return "ຄໍາຕອບທີ່ຖືກຕ້ອງ:";
+            default:
+                return "Explanation:"; // 기본값 (영어)
+        }
     }
 
 
@@ -422,13 +455,14 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
         String summarizedText = lastWorkBook.getWb_sumtext();
         String contextText = lastWorkBook.getWb_content();
+        String language = lastWorkBook.getWb_language();
 
         if ((summarizedText == null || summarizedText.trim().isEmpty()) &&
                 (contextText == null || contextText.trim().isEmpty())) {
             throw new IllegalArgumentException("문제를 재생성할 데이터가 부족합니다.");
         }
 
-        Map<String, Object> questionResult = regenerateQuestion(summarizedText, contextText);
+        Map<String, Object> questionResult = regenerateQuestion(summarizedText, contextText, language);
         if (questionResult == null || questionResult.isEmpty()) {
             throw new RuntimeException("문제 생성이 실패했습니다.");
         }
@@ -441,7 +475,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         }
 
 
-        Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions);
+        Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions, language);
 
 
         if (answerResult == null || answerResult.isEmpty()) {
@@ -462,7 +496,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
     }
 
     @Override
-    public Map<String, Object> regenerateQuestion(String summarizedText, String contextText) {
+    public Map<String, Object> regenerateQuestion(String summarizedText, String contextText, String language) {
         if (summarizedText == null || summarizedText.trim().isEmpty()) {
             log.error("요약된 텍스트가 없습니다.");
             throw new IllegalArgumentException("요약된 텍스트가 없습니다.");
@@ -481,7 +515,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
             result.put("textQuestions", textQuestions);
 
             // 답지 생성
-            Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions);
+            Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions, language);
             result.put("answers", answerResult);
 
             return result;
@@ -604,7 +638,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         response.setImageQuestions(imageQuestions);
         response.setTextQuestions(textQuestions);
 
-        Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions);
+        Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions, language);
         String answerText = (String) answerResult.get("content");
 
         List<Question> q = awsS3Service.uploadfile(imageQuestions, testMode);
@@ -760,7 +794,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         }
 
         // 답변 생성
-        Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions);
+        Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions,language);
         if (answerResult == null || answerResult.isEmpty()) {
             throw new RuntimeException("답변 생성 실패");
         }
@@ -803,7 +837,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
         // 이전 문제를 포함한 프롬프트 생성
         String fullPrompt =  prompt + "\n\n" +
-                "[The following questions have already been generated. Please ensure the new questions are distinct and not similar to these: \n" +
+                "[The following questions have already been generated. Please ensure the new questions are distinct and not similar to these. Ignore the numbering of the following questions.: \n" +
                 contextText + "]";
 
         // 이미지 문제 생성
@@ -817,7 +851,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         response.setImageQuestions(imageQuestions);
         response.setTextQuestions(textQuestions);
 
-        Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions);
+        Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions, language);
         String answerText = (String) answerResult.get("content");
 
         List<Question> q = awsS3Service.uploadfile(imageQuestions, testMode);
@@ -829,9 +863,11 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
     private String regenerateTextQuestionsByCategory(String categoryPrompt, String language) {
         String questionPrompt =
-                "Using the summarized text, generate 10 multiple-choice questions numbered 6 through 15. Exclude any introductory text. Use a formal tone in line with Korean college entrance exam style." +
-                        " Ensure that the questions are distinct and avoid repeating similar concepts or questions. " +
-                        " Label the options as ①, ②, ③, and ④, ensuring no answers are provided. If '*' is necessary, use it minimally and not for emphasis. " +
+                "Previously, questions 1 to 5 were generated. Now, using the summarized text, generate 10 multiple-choice questions starting from number 6 to 15. " +
+                        "Ensure the numbering begins exactly from 6 and continues sequentially to 15. Do not skip or reset the numbering. " +
+                        "Exclude any introductory text and use a formal tone in line with Korean college entrance exam style. " +
+                        "Ensure that the questions are distinct and avoid repeating similar concepts or questions. " +
+                        "Label the options as ①, ②, ③, and ④, ensuring no answers are provided. If '*' is necessary, use it minimally and not for emphasis. " +
                         "Please create the problem in " + language + " and provide options ①, ②, ③, and ④ in Korean. " + categoryPrompt;
 
         ChatCompletionDto textCompletion = ChatCompletionDto.builder()
