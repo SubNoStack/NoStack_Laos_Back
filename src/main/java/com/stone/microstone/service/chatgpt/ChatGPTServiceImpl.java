@@ -28,6 +28,11 @@ import com.fasterxml.jackson.core.JsonParser;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.CompletableFuture;
+
 
 @Slf4j
 @Service
@@ -177,10 +182,25 @@ public class ChatGPTServiceImpl implements ChatGPTService {
             throw new IllegalArgumentException("요약된 텍스트가 없습니다.");
         }
 
+        // ExecutorService 생성 (스레드 풀)
+        ExecutorService executorService = Executors.newFixedThreadPool(2);
+
+        // 텍스트 문제와 이미지 문제를 병렬로 생성
+        CompletableFuture<String> textQuestionsFuture = CompletableFuture.supplyAsync(() -> generateTextQuestions(summarizedText, language));
+        CompletableFuture<List<Map<String, String>>> imageQuestionsFuture = CompletableFuture.supplyAsync(() -> generateImageQuestions(summarizedText, language));
+
         log.debug("[+] 요약된 텍스트를 기반으로 문제를 생성합니다. 언어: {}", language);
 
-        List<Map<String, String>> imageQuestions = generateImageQuestions(summarizedText, language);
-        String textQuestions = generateTextQuestions(summarizedText, language);
+        // 두 작업이 완료될 때까지 기다리고 결과 병합
+        String textQuestions;
+        List<Map<String, String>> imageQuestions;
+        try {
+            textQuestions = textQuestionsFuture.get();
+            imageQuestions = imageQuestionsFuture.get();
+        } catch (InterruptedException | ExecutionException e) {
+            log.error("문제 생성 중 오류 발생", e);
+            throw new RuntimeException("문제 생성 중 오류 발생", e);
+        }
 
         Map<String, Object> result = new HashMap<>();
         result.put("imageQuestions", imageQuestions);
@@ -627,11 +647,32 @@ public class ChatGPTServiceImpl implements ChatGPTService {
             default:
                 throw new IllegalArgumentException("Invalid category: " + category);
         }
-        // 이미지 문제 생성
-        List<Map<String, String>> imageQuestions = generateImageQuestionsByCategory(prompt, language);
+        ExecutorService executorService = Executors.newFixedThreadPool(2);
 
-        // 텍스트 문제 생성
-        String textQuestions = generateTextQuestionsByCategory(prompt, language);
+        CompletableFuture<List<Map<String, String>>> imageQuestionsFuture = CompletableFuture.supplyAsync(() ->
+                generateImageQuestionsByCategory(prompt, language), executorService
+        );
+
+        CompletableFuture<String> textQuestionsFuture = CompletableFuture.supplyAsync(() ->
+                generateTextQuestionsByCategory(prompt, language), executorService
+        );
+
+        CompletableFuture<Void> allFutures = CompletableFuture.allOf(imageQuestionsFuture, textQuestionsFuture);
+
+        List<Map<String, String>> imageQuestions;
+        String textQuestions;
+
+        try {
+            allFutures.get(); // 모든 작업 완료 대기
+            imageQuestions = imageQuestionsFuture.join();
+            textQuestions = textQuestionsFuture.join();
+        } catch (InterruptedException | ExecutionException e) {
+            log.error("문제 생성 중 오류 발생", e);
+            throw new RuntimeException("문제 생성 중 오류 발생", e);
+        } finally {
+            executorService.shutdown();
+        }
+
 
         // QuestionAnswerResponse 객체 반환
         QuestionAnswerResponse response = new QuestionAnswerResponse();
@@ -769,19 +810,14 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         // 마지막 문제집의 category와 language 가져오기
         String category = lastWorkBook.getWb_category();
         String language = lastWorkBook.getWb_language();
-        String contextText = lastWorkBook.getWb_content();
 
         // category와 language가 유효한지 확인
         if (category == null || category.trim().isEmpty() || language == null || language.trim().isEmpty()) {
             throw new IllegalArgumentException("카테고리 또는 언어 정보가 유효하지 않습니다.");
         }
 
-        if (contextText == null || contextText.trim().isEmpty()) {
-            throw new IllegalArgumentException("문제를 재생성할 데이터가 부족합니다.");
-        }
-
         // regenerateCategoryQuestions를 호출하여 새로운 문제 생성
-        QuestionAnswerResponse newQuestionsResponse = regenerateCategoryQuestions(category, language, contextText);
+        QuestionAnswerResponse newQuestionsResponse = regenerateCategoryQuestions(category, language);
 
         // 새로운 문제와 답변을 가져옴
         String newQuestion = newQuestionsResponse.getTextQuestions();
@@ -814,7 +850,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         );
     }
 
-    private QuestionAnswerResponse regenerateCategoryQuestions(String category, String language, String contextText) throws IOException {
+    private QuestionAnswerResponse regenerateCategoryQuestions(String category, String language) throws IOException {
         log.debug("카테고리 문제 재생성 시작: " + category);
 
         String prompt;
@@ -835,16 +871,11 @@ public class ChatGPTServiceImpl implements ChatGPTService {
                 throw new IllegalArgumentException("Invalid category: " + category);
         }
 
-        // 이전 문제를 포함한 프롬프트 생성
-        String fullPrompt =  prompt + "\n\n" +
-                "[The following questions have already been generated. Please ensure the new questions are distinct and not similar to these. Ignore the numbering of the following questions.: \n" +
-                contextText + "]";
-
         // 이미지 문제 생성
-        List<Map<String, String>> imageQuestions = regenerateImageQuestionsByCategory(fullPrompt, language);
+        List<Map<String, String>> imageQuestions = regenerateImageQuestionsByCategory(prompt, language);
 
         // 텍스트 문제 생성
-        String textQuestions = regenerateTextQuestionsByCategory(fullPrompt, language);
+        String textQuestions = regenerateTextQuestionsByCategory(prompt, language);
 
         // QuestionAnswerResponse 객체 반환
         QuestionAnswerResponse response = new QuestionAnswerResponse();
