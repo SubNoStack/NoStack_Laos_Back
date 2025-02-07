@@ -121,14 +121,24 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         return resultMap;
     }
 
+    private String cleanInputText(String input) {
+        // 줄바꿈 문자를 \\n으로 대체
+        input = input.replace("\n", "\\n");
+        // 탭 문자를 \\t로 대체
+        input = input.replace("\t", "\\t");
+        // 캐리지 리턴 문자를 \\r로 대체
+        input = input.replace("\r", "\\r");
+        // 따옴표 이스케이프 처리
+        input = input.replace("\"", "\\\"");
+        return input;
+    }
 
-    @Override //텍스트를 입력받아 문제 텍스트를 처리하고 답변을 생성하는 메서드
+    @Override
     public QuestionAnswerResponse processText(String problemText, String language, String category) throws IOException {
-
-        problemText = cleanInputText(problemText); //특수문자 정제 메소드
+        problemText = cleanInputText(problemText);
         log.debug("받은 문제 텍스트: " + problemText);
-        // 문제 텍스트를 처리하여 요약, 문제생성, 답변 생성 3단계를 수행
-        // 1단계: 문제 텍스트 요약
+
+        // 1. 문제 텍스트 요약
         Map<String, Object> summaryResult = summarizeText(problemText, language);
         String summarizedText = (String) summaryResult.get("content");
         if (summarizedText == null || summarizedText.trim().isEmpty()) {
@@ -136,22 +146,33 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         }
         log.debug("요약된 텍스트: " + summarizedText);
 
-        // 2단계: 요약된 텍스트로 문제 생성
+        // 2. 15개의 문제 생성
         Map<String, Object> questionResult = generateQuestion(summarizedText, language);
-        String textQuestions = (String) questionResult.get("textQuestions");
-        List<Map<String, String>> imageQuestions = (List<Map<String, String>>) questionResult.get("imageQuestions");
-        log.debug("생성된 질문: " + textQuestions);
+        List<String> allQuestions = (List<String>) questionResult.get("questions");
+        if (allQuestions.size() < 15) {
+            throw new IllegalArgumentException("15개의 문제가 생성되지 않았습니다.");
+        }
 
-        // 3단계: 질문으로 답변 생성
-        Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions, language);
+        // 3. 이미지 문제를 병렬로 생성 (1~5번 문제만 이미지로 변환)
+        List<String> textQuestions = allQuestions.subList(5, 15);
+        List<String> imageQuestionsTexts = allQuestions.subList(0, 5);
+        List<Map<String, String>> imageQuestions = generateImageQuestions(imageQuestionsTexts, language);
+
+        log.debug("텍스트 문제: " + textQuestions);
+        log.debug("이미지 문제: " + imageQuestions);
+
+        // 4. 질문으로 답변 생성
+        Map<String, Object> answerResult = generateAnswer(imageQuestions, String.join("\n", textQuestions), language);
+
         String answerText = (String) answerResult.get("content");
         if (answerText == null || answerText.trim().isEmpty()) {
             throw new IllegalArgumentException("생성된 답변이 없습니다.");
         }
         log.debug("생성된 답변: " + answerText);
+
         List<Question> q = awsS3Service.uploadfile(imageQuestions, testMode);
 
-        return workBookService.getWorkBook(textQuestions, summarizedText, answerText, imageQuestions, q, language, category);
+        return workBookService.getWorkBook(textQuestions.toString(), summarizedText, answerText, imageQuestions, q, language, category);
     }
 
     @Override
@@ -177,160 +198,77 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
     @Override
     public Map<String, Object> generateQuestion(String summarizedText, String language) {
-        if (summarizedText == null || summarizedText.trim().isEmpty()) {
-            log.error("요약된 텍스트가 없습니다.");
-            throw new IllegalArgumentException("요약된 텍스트가 없습니다.");
-        }
-
-        // ExecutorService 생성 (스레드 풀)
-        ExecutorService executorService = Executors.newFixedThreadPool(2);
-
-        // 텍스트 문제와 이미지 문제를 병렬로 생성
-        CompletableFuture<String> textQuestionsFuture = CompletableFuture.supplyAsync(() -> generateTextQuestions(summarizedText, language));
-        CompletableFuture<List<Map<String, String>>> imageQuestionsFuture = CompletableFuture.supplyAsync(() -> generateImageQuestions(summarizedText, language));
-
         log.debug("[+] 요약된 텍스트를 기반으로 문제를 생성합니다. 언어: {}", language);
 
-        // 두 작업이 완료될 때까지 기다리고 결과 병합
-        String textQuestions;
-        List<Map<String, String>> imageQuestions;
-        try {
-            textQuestions = textQuestionsFuture.get();
-            imageQuestions = imageQuestionsFuture.get();
-        } catch (InterruptedException | ExecutionException e) {
-            log.error("문제 생성 중 오류 발생", e);
-            throw new RuntimeException("문제 생성 중 오류 발생", e);
+        // 15개의 문제를 한 번에 생성
+        List<String> allQuestions = generateTextQuestions(summarizedText, language);
+        if (allQuestions.size() < 15) {
+            throw new IllegalArgumentException("15개의 문제가 생성되지 않았습니다.");
         }
 
+        // 결과 맵에 저장
         Map<String, Object> result = new HashMap<>();
-        result.put("imageQuestions", imageQuestions);
-        result.put("textQuestions", textQuestions);
-
-        // 답변 생성 메서드 호출
-        Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions, language);
-        result.put("answers", answerResult);
+        result.put("questions", allQuestions);
 
         return result;
     }
 
+    private List<Map<String, String>> generateImageQuestions(List<String> imageQuestionsTexts, String language) {
+        ExecutorService executorService = Executors.newFixedThreadPool(5);
 
-    private List<Map<String, String>> generateImageQuestions(String summarizedText, String language) {
-        List<Map<String, String>> imageQuestions = new ArrayList<>();
-        List<String> previousQuestions = new ArrayList<>(); // 이전에 생성된 문제를 저장할 리스트
+        List<CompletableFuture<Map<String, String>>> futures = new ArrayList<>();
 
-        for (int i = 1; i <= 5; i++) {
-            // 이전 문제들을 프롬프트에 추가
-            String previousQuestionsPrompt = "";
-            if (!previousQuestions.isEmpty()) {
-                previousQuestionsPrompt = " The following questions have already been generated. Please ensure the new question is different from these: \n";
-                for (String prevQuestion : previousQuestions) {
-                    previousQuestionsPrompt += "- " + prevQuestion + "\n";
-                }
-            }
-            String questionPrompt = "Using the summarized text, create a formal tone multiple-choice question numbered " + i +
-                    " without an introduction. The question should have 4 answer options labeled as ①, ②, ③, and ④. Do not include the correct answer or use any special characters like '*'." +
-                    " Create a problem in " + language + " using the following summarized text: " + summarizedText +
-                    previousQuestionsPrompt + " Ensure the new question is distinct and not similar to the ones listed above.";
+        for (String questionText : imageQuestionsTexts) {
+            CompletableFuture<Map<String, String>> future = CompletableFuture.supplyAsync(() -> {
+                String imageUrl = generateImage(questionText);
 
-            ChatCompletionDto questionCompletion = ChatCompletionDto.builder()
-                    .model("gpt-4o-mini")
-                    .messages(List.of(ChatRequestMsgDto.builder()
-                            .role("user")
-                            .content(questionPrompt)
-                            .build()))
-                    .build();
-            Map<String, Object> questionResponse = executePrompt(questionCompletion);
-            String questionText = (String) questionResponse.get("content");
+                Map<String, String> questionWithImage = new HashMap<>();
+                questionWithImage.put("question", questionText);
+                questionWithImage.put("imageUrl", imageUrl);
 
-            // 이전 문제와 유사한지 확인 (간단한 예시로 포함 여부만 확인)
-            boolean isSimilar = false;
-            for (String prevQuestion : previousQuestions) {
-                if (questionText.contains(prevQuestion) || prevQuestion.contains(questionText)) {
-                    isSimilar = true;
-                    break;
-                }
-            }
-
-            if (isSimilar) {
-                i--; // 유사한 문제가 있다면 다시 시도
-                continue;
-            }
-
-            previousQuestions.add(questionText); // 새로운 문제를 리스트에 추가
-            questionText += "\n";
-
-            String imageUrl = generateImage(questionText);
-
-            Map<String, String> questionWithImage = new HashMap<>();
-            questionWithImage.put("question", questionText);
-            questionWithImage.put("imageUrl", imageUrl);
-
-            imageQuestions.add(questionWithImage);
+                return questionWithImage;
+            }, executorService);
+            futures.add(future);
         }
+
+        // 모든 작업 완료까지 대기 후 결과 반환
+        List<Map<String, String>> imageQuestions = futures.stream()
+                .map(CompletableFuture::join)
+                .toList();
+
+        executorService.shutdown();
         return imageQuestions;
     }
-/* 이미지문제가 1문제만 생성되도록 수정한 메서드
-    private List<Map<String, String>> generateImageQuestions(String summarizedText, String language) {
-        List<Map<String, String>> imageQuestions = new ArrayList<>();
 
-        // 1문제만 생성하도록 고정
-        String questionPrompt = "Using the summarized text, create a formal tone multiple-choice question numbered 1 " +
-                "without an introduction. The question should have 4 answer options labeled as ①, ②, ③, and ④. Do not include the correct answer or use any special characters like '*'." +
-                " Create a problem in " + language + " using the following summarized text: " + summarizedText;
-
-        ChatCompletionDto questionCompletion = ChatCompletionDto.builder()
-                .model("gpt-4o-mini")
-                .messages(List.of(ChatRequestMsgDto.builder()
-                        .role("user")
-                        .content(questionPrompt)
-                        .build()))
-                .build();
-
-        Map<String, Object> questionResponse = executePrompt(questionCompletion);
-        String questionText = (String) questionResponse.get("content");
-
-        questionText += "\n";
-
-        // 이미지 생성 요청 (이미지 1개만 생성)
-        String imageUrl = generateImage(questionText);
-
-        Map<String, String> questionWithImage = new HashMap<>();
-        questionWithImage.put("question", questionText);
-        questionWithImage.put("imageUrl", imageUrl);
-
-        imageQuestions.add(questionWithImage);
-
-        return imageQuestions;
-    }*/
-
-
-    private String cleanInputText(String input) {
-        // 줄바꿈 문자를 \\n으로 대체
-        input = input.replace("\n", "\\n");
-        // 탭 문자를 \\t로 대체
-        input = input.replace("\t", "\\t");
-        // 캐리지 리턴 문자를 \\r로 대체
-        input = input.replace("\r", "\\r");
-        // 따옴표 이스케이프 처리
-        input = input.replace("\"", "\\\"");
-        return input;
-    }
-
-
-    private String generateTextQuestions(String summarizedText, String language) {
+    private List<String> generateTextQuestions(String summarizedText, String language) {
         ChatCompletionDto textCompletion = ChatCompletionDto.builder()
                 .model("gpt-4o-mini")
                 .messages(List.of(ChatRequestMsgDto.builder()
                         .role("user")
-                        .content("Using the summarized text, generate 10 multiple-choice questions numbered 6 through 15. Exclude any introductory text. Use a formal tone in line with Korean college entrance exam style." +
-                                " Label the options as ①, ②, ③, and ④, ensuring no answers are provided. If '*' is necessary, use it minimally and not for emphasis. " + "Create a problem using " + language + ". " + summarizedText)
+                        .content("Using the summarized text, generate 15 multiple-choice questions numbered 1 through 15.\n\n" +
+                                "Ensure that each question follows this format:\n" +
+                                "(1) The question statement, followed by a newline.\n" +
+                                "(2) Four answer choices labeled as ①, ②, ③, and ④, each on a new line.\n" +
+                                "Do not include any introductory or explanatory text.\n\n" +
+                                "Use a formal tone in line with Korean college entrance exam style.\n" +
+                                "Create the problems using " + language + ".\n\n" +
+                                "Here is the summarized text:\n" + summarizedText)
                         .build()))
                 .build();
+
         log.debug("문제 생성 정보={}", textCompletion.toString());
 
         Map<String, Object> textQuestionsResponse = executePrompt(textCompletion);
-        return (String) textQuestionsResponse.get("content");
+        String questionsText = (String) textQuestionsResponse.get("content");
+
+        // 문제 번호(1. ~ 15.)를 기준으로 문제를 나누기
+        List<String> splitQuestions = Arrays.asList(questionsText.split("(?<=\\d{1,2}\\.)\\s"));
+
+
+
+        return splitQuestions;
     }
+
 
     private String generateImage(String description) {
         if (testMode) {
@@ -339,9 +277,6 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         }
 
         log.debug("[+] 이미지 생성 요청: {}", description);
-
-        // 설명을 영어로 번역
-        // String englishDescription = translateToEnglish(description);
 
         // DALL-E 요청 텍스트
         String prompt = description + " Create a detailed and accurate visual representation of the problem described above." +
@@ -363,29 +298,6 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
         return imageUrl;
     }
-
-//    private String translateToEnglish(String description) {
-//        // GPT를 사용하여 설명을 영어로 번역하는 프롬프트 작성
-//        ChatCompletionDto translationRequest = ChatCompletionDto.builder()
-//                .model("gpt-4o-mini")
-//                .messages(List.of(ChatRequestMsgDto.builder()
-//                        .role("user")
-//                        .content("Translate the following text into English. Provide an accurate and clear translation. \n" + description +
-//                                "Additionally, create a detailed image description related to the content of the question." +
-//                                " The description should be clear and concise, ensuring that it can be used to generate a visual representation of the topic. Do not use any futuristic, modern, or abstract elements." +
-//                                " The image should match the context and tone of the problem described. Avoid using any text in the image.")
-//
-//                        .build()))
-//                .build();
-//
-//        log.debug("번역 요청 정보={}", translationRequest.toString());
-//
-//        // GPT로 번역된 텍스트 응답을 받아옴
-//        Map<String, Object> translationResponse = executePrompt(translationRequest);
-//
-//        // 번역된 텍스트 반환
-//        return (String) translationResponse.get("content");
-//    }
 
     @Override
     public Map<String, Object> generateAnswer(List<Map<String, String>> imageQuestions, String textQuestions, String language) {
