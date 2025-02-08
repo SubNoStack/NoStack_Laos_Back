@@ -67,13 +67,13 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
         // 요청 유형에 따라 URL 및 모델 선택
         if (requestDto instanceof DalleRequestDto) {
-            promptUrl = chatGPTConfig.getDalleApiUrl();
+            promptUrl = chatGPTConfig.getDalleApiUrl(); // DALL-E API URL 설정
             model = ((DalleRequestDto) requestDto).getModel();
         } else if (requestDto instanceof ChatCompletionDto) {
-            promptUrl = chatGPTConfig.getApiUrl();
+            promptUrl = chatGPTConfig.getApiUrl(); // ChatGPT API URL 설정
             model = ((ChatCompletionDto) requestDto).getModel();
         } else {
-            throw new IllegalArgumentException("Unsupported request type");
+            throw new IllegalArgumentException("Unsupported request type"); // 지원되지 않는 요청 유형 예외 처리
         }
 
         // OpenAI API 호출 및 응답 처리
@@ -96,14 +96,14 @@ public class ChatGPTServiceImpl implements ChatGPTService {
             log.debug("API 응답: {}", responseMap);
 
             if (model.startsWith("dall")) {
-                // DALL-E 응답 처리
+                // DALL-E 응답 처리 (이미지 URL 추출)
                 List<Map<String, Object>> data = (List<Map<String, Object>>) responseMap.get("data");
                 if (data != null && !data.isEmpty()) {
                     String imageUrl = (String) data.get(0).get("url");
                     resultMap.put("content", imageUrl);
                 }
             } else {
-                // GPT 응답 처리
+                // GPT 응답 처리 (텍스트 응답 추출)
                 List<Map<String, Object>> choices = (List<Map<String, Object>>) responseMap.get("choices");
                 if (choices != null && !choices.isEmpty()) {
                     Map<String, Object> firstChoice = choices.get(0);
@@ -120,20 +120,22 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         }
         return resultMap;
     }
-
+    //입력된 텍스트에서 특수 문자를 이스케이프 처리하여 API 요청 시 안정성을 보장하는 메서드
     private String cleanInputText(String input) {
-        // 줄바꿈 문자를 \\n으로 대체
-        input = input.replace("\n", "\\n");
-        // 탭 문자를 \\t로 대체
-        input = input.replace("\t", "\\t");
-        // 캐리지 리턴 문자를 \\r로 대체
-        input = input.replace("\r", "\\r");
-        // 따옴표 이스케이프 처리
-        input = input.replace("\"", "\\\"");
+        input = input.replace("\n", "\\n"); // 줄바꿈 문자를 \\n으로 대체
+        input = input.replace("\t", "\\t"); // 탭 문자를 \\t로 대체
+        input = input.replace("\r", "\\r"); // 캐리지 리턴 문자를 \\r로 대체
+        input = input.replace("\"", "\\\""); // 따옴표 이스케이프 처리
         return input;
     }
 
-    @Override
+    /**
+     * @param problemText 문제 원본 텍스트
+     * @param language 문제 생성 언어 (예: korea, english, Lao language)
+     * @param category 문제 카테고리 (예: objcet, food)
+     * @return 생성된 문제 및 답변을 포함한 QuestionAnswerResponse 객체
+     */
+    @Override  //주어진 문제 텍스트를 요약하고 문제를 생성하는 프로세스를 수행하는 메서드
     public QuestionAnswerResponse processText(String problemText, String language, String category) throws IOException {
         problemText = cleanInputText(problemText);
         log.debug("받은 문제 텍스트: " + problemText);
@@ -163,18 +165,23 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
         // 4. 질문으로 답변 생성
         Map<String, Object> answerResult = generateAnswer(imageQuestions, String.join("\n", textQuestions), language);
-
         String answerText = (String) answerResult.get("content");
         if (answerText == null || answerText.trim().isEmpty()) {
             throw new IllegalArgumentException("생성된 답변이 없습니다.");
         }
         log.debug("생성된 답변: " + answerText);
 
+        // 5. 이미지 문제를 S3에 업로드 후 최종 Workbook 반환
         List<Question> q = awsS3Service.uploadfile(imageQuestions, testMode);
-
         return workBookService.getWorkBook(textQuestions.toString(), summarizedText, answerText, imageQuestions, q, language, category);
     }
 
+    /**
+     * 주어진 텍스트를 GPT 모델을 이용해 요약하는 메서드
+     * @param text 원본 텍스트
+     * @param language 요약할 언어
+     * @return 요약된 텍스트 결과 (Map 형태)
+     */
     @Override
     public Map<String, Object> summarizeText(String text, String language) { //주어진 텍스트를 요약하는 메소드
         log.debug("[+] 문제 텍스트를 요약합니다.");
@@ -196,6 +203,12 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         return response;
     }
 
+    /**
+     * 요약된 텍스트를 바탕으로 15개의 객관식 문제를 생성하는 메서드
+     * @param summarizedText 요약된 문제 텍스트
+     * @param language 문제 생성 언어
+     * @return 15개의 문제 리스트
+     */
     @Override
     public Map<String, Object> generateQuestion(String summarizedText, String language) {
         log.debug("[+] 요약된 텍스트를 기반으로 문제를 생성합니다. 언어: {}", language);
@@ -212,6 +225,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
         return result;
     }
+
 
     private List<Map<String, String>> generateImageQuestions(List<String> imageQuestionsTexts, String language) {
         ExecutorService executorService = Executors.newFixedThreadPool(5);
@@ -262,7 +276,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         String questionsText = (String) textQuestionsResponse.get("content");
 
         // 문제 번호(1. ~ 15.)를 기준으로 문제를 나누기
-        List<String> splitQuestions = Arrays.asList(questionsText.split("(?<=\\d{1,2}\\.)\\s"));
+        List<String> splitQuestions = Arrays.asList(questionsText.split("(?=\\b\\d{1,2}\\.)"));
 
 
 
@@ -273,7 +287,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
     private String generateImage(String description) {
         if (testMode) {
             log.debug("[테스트 모드] 더미 이미지 URL 반환");
-            return "https://example.com/dummy-image.jpg";
+            return "https://www.dummyimage.com/1024x1024/000/fff.jpg&text=No+Stack";
         }
 
         log.debug("[+] 이미지 생성 요청: {}", description);
@@ -406,9 +420,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
             throw new RuntimeException("문제 생성 실패: imageQuestions 또는 textQuestions가 비어 있습니다.");
         }
 
-
         Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions, language);
-
 
         if (answerResult == null || answerResult.isEmpty()) {
             throw new RuntimeException("답변 생성 실패");
