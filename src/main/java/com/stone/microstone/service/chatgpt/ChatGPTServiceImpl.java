@@ -226,7 +226,6 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         return result;
     }
 
-
     private List<Map<String, String>> generateImageQuestions(List<String> imageQuestionsTexts, String language) {
         ExecutorService executorService = Executors.newFixedThreadPool(5);
 
@@ -277,8 +276,6 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
         // 문제 번호(1. ~ 15.)를 기준으로 문제를 나누기
         List<String> splitQuestions = Arrays.asList(questionsText.split("(?=\\b\\d{1,2}\\.)"));
-
-
 
         return splitQuestions;
     }
@@ -396,8 +393,8 @@ public class ChatGPTServiceImpl implements ChatGPTService {
     @Transactional
     @Override
     public QuestionAnswerResponse getRetextWorkBook() {
-        Optional<WorkBook> optionalLastWorkBook = workBookRepository.findLastWorkBook();
-        WorkBook lastWorkBook = optionalLastWorkBook.orElseThrow(() -> new RuntimeException("기존 문제집이 존재하지 않습니다."));
+        WorkBook lastWorkBook = workBookRepository.findLastWorkBook()
+                .orElseThrow(() -> new RuntimeException("기존 문제집이 존재하지 않습니다."));
 
         String summarizedText = lastWorkBook.getWb_sumtext();
         String contextText = lastWorkBook.getWb_content();
@@ -407,35 +404,42 @@ public class ChatGPTServiceImpl implements ChatGPTService {
                 (contextText == null || contextText.trim().isEmpty())) {
             throw new IllegalArgumentException("문제를 재생성할 데이터가 부족합니다.");
         }
-
+        // 1. 문제 재생성
         Map<String, Object> questionResult = regenerateQuestion(summarizedText, contextText, language);
-        if (questionResult == null || questionResult.isEmpty()) {
-            throw new RuntimeException("문제 생성이 실패했습니다.");
+        List<String> allQuestions = (List<String>) questionResult.get("questions");
+        if (allQuestions.size() < 15) {
+            throw new IllegalArgumentException("15개의 문제가 생성되지 않았습니다.");
         }
+        // 2. 이미지 문제: 처음 5개 텍스트 문제: 6~15번 (5~14 인덱스)
+        List<String> textQuestions = allQuestions.subList(5, 15);
+        List<String> imageQuestionsTexts = allQuestions.subList(0, 5);
+        List<Map<String, String>> imageQuestions = generateImageQuestions(imageQuestionsTexts, language);
 
-        String newQuestion = (String) questionResult.get("content");
-        List<Map<String, String>> imageQuestions = (List<Map<String, String>>) questionResult.get("imageQuestions");
-        String textQuestions = (String) questionResult.get("textQuestions");
-        if ((imageQuestions == null || imageQuestions.isEmpty()) && (textQuestions == null || textQuestions.trim().isEmpty())) {
-            throw new RuntimeException("문제 생성 실패: imageQuestions 또는 textQuestions가 비어 있습니다.");
-        }
+        log.debug("텍스트 문제: " + textQuestions);
+        log.debug("이미지 문제: " + imageQuestions);
 
-        Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions, language);
-
-        if (answerResult == null || answerResult.isEmpty()) {
-            throw new RuntimeException("답변 생성 실패");
-        }
+        // 3. 답변 생성
+        Map<String, Object> answerResult = generateAnswer(imageQuestions, String.join("\n", textQuestions), language);
         String answerText = (String) answerResult.get("content");
+        if (answerText == null || answerText.trim().isEmpty()) {
+            throw new IllegalArgumentException("생성된 답변이 없습니다.");
+        }
+        log.debug("생성된 답변: " + answerText);
 
-        WorkBook savedWorkBook = workBookService.findLastWorkBook(newQuestion, answerText, imageQuestions, textQuestions, testMode);
+        WorkBook savedWorkBook = workBookService.findLastWorkBook(
+                String.join("\n", textQuestions),
+                answerText,
+                imageQuestions,
+                String.join("\n", textQuestions),
+                testMode);
 
         return new QuestionAnswerResponse(
                 savedWorkBook.getWb_id(),
                 savedWorkBook.getWb_title(),
-                newQuestion,
-                answerText,
+                savedWorkBook.getWb_content(),
+                savedWorkBook.getWb_answer(),
                 imageQuestions,
-                textQuestions
+                String.join("\n", textQuestions)
         );
     }
 
@@ -446,95 +450,30 @@ public class ChatGPTServiceImpl implements ChatGPTService {
             throw new IllegalArgumentException("요약된 텍스트가 없습니다.");
         }
         log.debug("[+] 기존 문제들을 기반으로 새로운 문제를 생성합니다.");
-
-        try {
-            // 기존 문제를 참고하여 새로운 이미지 기반 문제 5개 생성
-            List<Map<String, String>> imageQuestions = regenerateImageQuestions(summarizedText, contextText);
-
-            // 기존 문제를 참고하여 새로운 텍스트 기반 문제 10개 생성
-            String textQuestions = regenerateTextQuestions(summarizedText, contextText);
-
-            Map<String, Object> result = new HashMap<>();
-            result.put("imageQuestions", imageQuestions);
-            result.put("textQuestions", textQuestions);
-
-            // 답지 생성
-            Map<String, Object> answerResult = generateAnswer(imageQuestions, textQuestions, language);
-            result.put("answers", answerResult);
-
-            return result;
-
-        } catch (Exception e) {
-            log.error("Prompt 실행 중 오류 발생: {}", e.getMessage(), e);
-            throw new RuntimeException("문제 생성 실패", e);
+            // 15개의 문제를 한 번에 생성
+        List<String> allQuestions = regenerateTextQuestions(summarizedText, contextText);
+        if (allQuestions.size() < 15) {
+            throw new IllegalArgumentException("15개의 문제가 생성되지 않았습니다.");
         }
+        Map<String, Object> result = new HashMap<>();
+        result.put("questions", allQuestions);
+
+        return result;
     }
 
-    private List<Map<String, String>> regenerateImageQuestions(String summarizedText, String contextText) {
-        List<Map<String, String>> imageQuestions = new ArrayList<>();
-        List<String> previousQuestions = new ArrayList<>(); // 이전에 생성된 문제를 저장할 리스트
-
-
-        for (int i = 1; i <= 5; i++) {
-            // 이전 문제들을 프롬프트에 추가
-            String previousQuestionsPrompt = "";
-            if (!previousQuestions.isEmpty()) {
-                previousQuestionsPrompt = " The following questions have already been generated. Please ensure the new question is different from these: \n";
-                for (String prevQuestion : previousQuestions) {
-                    previousQuestionsPrompt += "- " + prevQuestion + "\n";
-                }
-            }
-            String questionPrompt = "Based on the summarized text, create a formal tone multiple-choice question numbered " + i +
-                    ". The question should not overlap with the following existing questions: " + contextText +
-                    ". Ensure a formal tone similar to Korean college entrance exams. Label the choices as ①, ②, ③, and ④, but do not include the correct answer. " +
-                    "Summarized Text: " + summarizedText +
-                    previousQuestionsPrompt + " Ensure the new question is distinct and not similar to the ones listed above.";
-
-            ChatCompletionDto questionCompletion = ChatCompletionDto.builder()
-                    .model("gpt-4o-mini")
-                    .messages(List.of(ChatRequestMsgDto.builder()
-                            .role("user")
-                            .content(questionPrompt)
-                            .build()))
-                    .build();
-
-            Map<String, Object> questionResponse = executePrompt(questionCompletion);
-            String questionText = (String) questionResponse.get("content");
-
-            // 이전 문제와 유사한지 확인 (간단한 예시로 포함 여부만 확인)
-            boolean isSimilar = false;
-            for (String prevQuestion : previousQuestions) {
-                if (questionText.contains(prevQuestion) || prevQuestion.contains(questionText)) {
-                    isSimilar = true;
-                    break;
-                }
-            }
-
-            if (isSimilar) {
-                i--; // 유사한 문제가 있다면 다시 시도
-                continue;
-            }
-
-            previousQuestions.add(questionText); // 새로운 문제를 리스트에 추가
-            questionText += "\n";
-
-            // 이미지 생성 요청
-            String imageUrl = generateImage(questionText);
-
-            Map<String, String> questionWithImage = new HashMap<>();
-            questionWithImage.put("question", questionText);
-            questionWithImage.put("imageUrl", imageUrl);
-
-            imageQuestions.add(questionWithImage);
-        }
-        return imageQuestions;
-    }
-
-    private String regenerateTextQuestions(String summarizedText, String contextText) {
-        String questionPrompt = "Based on the summarized text, generate 10 new multiple-choice questions numbered 6 to 15." +
-                " Ensure these questions do not overlap with previous ones. Maintain a formal tone similar to Korean college entrance exams." +
-                " Label the options as ①, ②, ③, and ④, ensuring no answers are provided." +
-                " Previous Questions: " + contextText + " Summarized Text: " + summarizedText;
+    /**
+     * 15개의 새로운 텍스트 문제를 한 번에 생성하는 메서드
+     */
+    private List<String> regenerateTextQuestions(String summarizedText, String contextText) {
+        String questionPrompt = "Using the summarized text, generate 15 new multiple-choice questions numbered 1 through 15.\n\n" +
+                "Ensure that each question follows this format:\n" +
+                "(1) The question statement, followed by a newline.\n" +
+                "(2) Four answer choices labeled as ①, ②, ③, and ④, each on a new line.\n" +
+                "Do not include any introductory or explanatory text.\n\n" +
+                "Maintain a formal tone similar to Korean college entrance exams.\n\n" +
+                "Ensure these questions do not overlap with the previous ones.\n" +
+                "Here are the previous questions:\n" + contextText + "\n\n" +
+                "Here is the summarized text:\n" + summarizedText;
 
         ChatCompletionDto textCompletion = ChatCompletionDto.builder()
                 .model("gpt-4o-mini")
@@ -547,8 +486,14 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         log.debug("재생성 텍스트 문제 요청: {}", textCompletion.toString());
 
         Map<String, Object> textQuestionsResponse = executePrompt(textCompletion);
-        return (String) textQuestionsResponse.get("content");
+        String questionsText = (String) textQuestionsResponse.get("content");
+
+        List<String> splitQuestions = Arrays.asList(questionsText.split("(?=\\b\\d{1,2}\\.)"));
+
+        // 응답된 문제를 줄 단위로 분할하여 리스트로 반환
+        return splitQuestions;
     }
+
 
     @Override
     public QuestionAnswerResponse generateCategoryQuestions(String category, String language) throws IOException {
