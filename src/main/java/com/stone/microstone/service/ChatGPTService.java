@@ -21,4 +21,6 @@ public interface ChatGPTService {
     QuestionAnswerResponse generateCategoryQuestions(String category, String language) throws IOException;
 
     QuestionAnswerResponse reCategoryWorkBook() throws IOException;
+
+    Map<String, Object> regenerateCategoryQuestions(String prompt, String language);
 }
