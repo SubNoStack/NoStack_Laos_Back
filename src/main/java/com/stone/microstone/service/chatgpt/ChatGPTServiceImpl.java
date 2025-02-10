@@ -304,13 +304,13 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
         log.debug("[+] 이미지 생성 요청: {}", description);
 
-        // DALL-E 요청 텍스트
+        // DALL-E 요청 텍스트 (이부분 수정해주면 됌)
         String prompt = description + " Create a detailed and accurate visual representation of the problem described above." +
                 " Ensure the image visually represents the context of the question and the correct answer." +
                 " Highlight the key elements related to the correct choice while ensuring the design remains minimalist, formal, and suitable for academic purposes." +
                 " Do not include any text or language in the image, but visually emphasize the core idea of the correct answer.";
 
-        // OpenAI API 요청 생성
+        // OpenAI API 요청 생성 (이부분 수정해주면 됌) <<프롬프트랑 같이 다른 설정들을 해줘야한다고 전달받음
         DalleRequestDto dalleRequest = DalleRequestDto.builder()
                 .model("dall-e-3")
                 .prompt(prompt)
@@ -412,7 +412,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
     @Transactional
     @Override
-    public QuestionAnswerResponse getRetextWorkBook() {
+    public QuestionAnswerResponse getRetextWorkBook() { //마지막으로 저장된 문제집(WorkBook)을 가져와 새로운 문제를 생성하고 저장한 후 반환하는 메서드
         WorkBook lastWorkBook = workBookRepository.findLastWorkBook() // 기존에 저장된 마지막 문제집을 가져옴
                 .orElseThrow(() -> new RuntimeException("기존 문제집이 존재하지 않습니다."));
         // 문제를 재생성하기 위한 데이터 가져오기
@@ -430,7 +430,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         if (allQuestions.size() < 15) {
             throw new IllegalArgumentException("15개의 문제가 생성되지 않았습니다.");
         }
-        // 2. 이미지 문제: 처음 5개 텍스트 문제: 6~15번 (5~14 인덱스)
+        // 2. 문제 유형 분리 (처음 5개: 이미지 문제, 이후 10개: 텍스트 문제)
         List<String> textQuestions = allQuestions.subList(5, 15);
         List<String> imageQuestionsTexts = allQuestions.subList(0, 5);
         List<Map<String, String>> imageQuestions = generateImageQuestions(imageQuestionsTexts, language);
@@ -453,7 +453,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
                 imageQuestions,
                 String.join("\n", textQuestions),
                 testMode);
-
+        //@return QuestionAnswerResponse - 생성된 문제와 정답이 포함된 응답 객체
         return new QuestionAnswerResponse(
                 savedWorkBook.getWb_id(),
                 savedWorkBook.getWb_title(),
@@ -463,7 +463,13 @@ public class ChatGPTServiceImpl implements ChatGPTService {
                 String.join("\n", textQuestions)
         );
     }
-
+    /**
+     * 기존 요약된 텍스트와 원본 텍스트를 기반으로 새로운 문제를 생성하는 메서드
+     * @param summarizedText 요약된 텍스트
+     * @param contextText 원본 문제집 텍스트
+     * @param language 문제를 생성할 언어
+     * @return Map<String, Object> - 생성된 문제 리스트를 포함하는 맵 객체
+     */
     @Override
     public Map<String, Object> regenerateQuestion(String summarizedText, String contextText, String language) {
         if (summarizedText == null || summarizedText.trim().isEmpty()) { // 요약된 텍스트가 없을 경우 예외 발생
@@ -515,12 +521,17 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         List<String> splitQuestions = Arrays.asList(questionsText.split("(?=\\b\\d{1,2}\\.)"));
         return splitQuestions;
     }
-
+    /**
+     * 특정 카테고리에 대한 문제를 생성하는 메서드
+     * @param category: 문제를 생성할 카테고리 (예: conversation, object, food, culture)
+     * @param language: 문제를 생성할 언어
+     * @return 생성된 문제와 답변을 포함한 QuestionAnswerResponse 객체
+     */
     @Override
     public QuestionAnswerResponse generateCategoryQuestions(String category, String language) throws IOException {
         log.debug("카테고리 문제 생성 시작: " + category);
 
-        String prompt;
+        String prompt; // 카테고리별로 다른 문제 생성 프롬프트 설정
         switch (category.toLowerCase()) {
             case "conversation":
                 prompt = "Create multiple-choice questions related to common Korean conversations in daily life. Focus on realistic scenarios such as greetings, ordering food, asking for directions, or making small talk. For example, questions could ask which phrase is appropriate in a given situation, or what the appropriate response would be.";
@@ -558,7 +569,11 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         List<Question> q = awsS3Service.uploadfile(imageQuestions, testMode);
         return workBookService.getWorkBookwithnosum(textQuestions.toString(), answerText, imageQuestions, q, language, category);
     }
-
+    /**
+     * 기존 문제집을 기반으로 새로운 문제집을 생성하는 메서드
+     * 기존에 생성된 문제집의 카테고리와 언어 정보를 가져와 문제를 재생성
+     * @return 새롭게 생성된 문제집을 포함한 QuestionAnswerResponse 객체
+     */
     @Override
     public QuestionAnswerResponse reCategoryWorkBook() throws IOException {
         // 마지막 워크북 조회
@@ -571,7 +586,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         if (category == null || category.trim().isEmpty() || language == null || language.trim().isEmpty()) {
             throw new IllegalArgumentException("카테고리 또는 언어 정보가 유효하지 않습니다.");
         }
-
+        // 카테고리에 따른 문제 생성 프롬프트 가져오기
         String prompt = getCategoryPrompt(category);
 
         // 1. 문제 생성
@@ -608,7 +623,13 @@ public class ChatGPTServiceImpl implements ChatGPTService {
                 String.join("\n", textQuestions)
         );
     }
-
+    /**
+     * 주어진 카테고리에 따라 문제 생성에 사용할 프롬프트를 반환하는 메서드
+     *
+     * @param category 문제 유형 ("conversation", "object", "food", "culture")
+     * @return 문제 생성에 사용할 프롬프트 문자열
+     * @throws IllegalArgumentException 유효하지 않은 카테고리가 입력되었을 경우 예외 발생
+     */
     private String getCategoryPrompt(String category) {
         String prompt;
         switch (category.toLowerCase()) {
@@ -630,6 +651,14 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         return prompt;
     }
 
+    /**
+     * 기존 문제를 기반으로 새로운 문제를 생성하는 메서드
+     *
+     * @param prompt 문제 생성을 위한 프롬프트
+     * @param language 문제를 생성할 언어
+     * @return 생성된 문제 목록을 포함한 Map 객체
+     * @throws IllegalArgumentException 15개의 문제가 생성되지 않은 경우 예외 발생
+     */
     @Override
     public Map<String, Object> regenerateCategoryQuestions(String prompt, String language) {
         log.debug("[+] 기존 문제들을 기반으로 새로운 문제를 생성합니다.");
@@ -644,6 +673,13 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         return result;
     }
 
+    /**
+     * AI 모델을 활용하여 카테고리별 문제를 재생성하는 메서드
+     *
+     * @param prompt 문제 생성을 위한 프롬프트
+     * @param language 문제를 생성할 언어
+     * @return 생성된 문제 목록
+     */
     private List<String> regenerateCategoryTextQuestions(String prompt, String language) {
         String questionPrompt = "Using the summarized text, generate 15 multiple-choice questions numbered 1 through 15.\n\n" +
                 "Ensure that each question follows this format:\n" +
