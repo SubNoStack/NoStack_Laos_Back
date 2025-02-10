@@ -217,7 +217,6 @@ public class ChatGPTController {
 
     }
 
-
     @Operation(summary = "전체 문제 답지 제목 조회 api", description = "파라미터 필요x, 주의!!최상단 json태그에 data태그 존재.")
     @ApiResponse(responseCode = "200", description = "성공",
             content = {@Content(schema = @Schema(type = "object",
@@ -242,15 +241,9 @@ public class ChatGPTController {
         }
     }
 
-
-
-
-
     @Operation(summary = "문제집 제목 변경 api",description = "파라미터 두개 필요,주의!!최상단 json태그에 data태그 존재.")
     @ApiResponse(responseCode="200",description = "성공",
             content = {@Content(schema = @Schema(implementation = TitleDto.class))})
-//    @ApiResponse(responseCode = "400",description = "입력오류",
-//            content = {@Content(schema = @Schema(implementation = ErrorResponse.class))})
     @ApiResponse(responseCode = "500", description = "서버 오류",
             content = @Content(schema = @Schema(type = "object", example = "{\"error\": \"서버 내부 오류 메시지\"}")))
     @PatchMapping("/title") //문제집 제목 변경 api
@@ -272,32 +265,6 @@ public class ChatGPTController {
         }
     }
 
-    //content = @Content(mediaType = MediaType.MULTIPART_FORM_DATA_VALUE,
-//    @Operation(summary = "문제집pdf 업로드 api",description = "파라미터 두개 필요,완료시 그냥 성공메세지만 전송.")
-//    @ApiResponse(responseCode = "200", description = "성공적으로 저장됨",
-//            content = @Content(schema = @Schema(type = "string", example = "{\"message\": \"저장완료\"}")))
-//    @ApiResponse(responseCode = "500", description = "서버 오류",
-//            content = @Content(schema = @Schema(type = "object", example = "{\"error\": \"서버 내부 오류 메시지\"}")))
-//    @PostMapping("/upload")  //생성된 문제집의 pdf를 저장하는 api
-//    public ResponseEntity uploadWorkbook(
-//            @Parameter(name="wb_id",
-//                    description = "어느 문제집 pdf 업로드 결정",example="2",required = true)
-//            @RequestParam Integer wb_id,
-//            @Parameter(name="file",
-//                    description = "문제집 pdf 데이터 올리기",example="파일 데이터",required = true)
-//            @RequestParam("file")MultipartFile file){ //생성된 문제 id와 pdf파일.
-//
-//        try{
-//            //pdf만 저장하니 서비스만 수행
-//            pdfService.savedata2(file,wb_id);
-//            return ResponseEntity.ok(Map.of("message","저장완료"));
-//        }catch (Exception e){
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-//                    .body(Map.of("error", e.getMessage()));
-//        }
-//
-//    }
-
     @Operation(summary = "문제집pdf 업로드 api", description = "파라미터 두개 필요, 완료시 그냥 성공메세지만 전송.")
     @ApiResponse(responseCode = "200", description = "성공적으로 저장됨",
             content = @Content(schema = @Schema(type = "string", example = "{\"message\": \"저장완료\"}")))
@@ -316,32 +283,6 @@ public class ChatGPTController {
                     .body(Map.of("error", e.getMessage()));
         }
     }
-
-
-
-//    @Operation(summary = "답지 pdf 업로드 api",description = "파라미터 두개 필요")
-//    @ApiResponse(responseCode = "200", description = "성공적으로 저장됨",
-//            content = @Content(schema = @Schema(type = "string", example = "{\"message\": \"저장완료\"}")))
-//    @ApiResponse(responseCode = "500", description = "서버 오류",
-//            content = @Content(schema = @Schema(type = "object", example = "{\"error\": \"서버 내부 오류 메시지\"}")))
-//    @PostMapping("/answer/upload") //생성된 답지의 pdf 저장 api
-//    public ResponseEntity uploadanswer(
-//            @Parameter(name="wb_id",
-//                    description = "어느 답지 pdf 업로드 결정",example="2",required = true)
-//            @RequestParam Integer wb_id,
-//            @Parameter(name="file",
-//                    description = "답지 pdf 데이터 올리기",example="파일 데이터",required = true)
-//            @RequestParam("file")MultipartFile file){//생성된 답지 id와 pdf파일.
-//
-//        try{
-//            //pdf만 저장하니 서비스만 수행
-//            pdfService.answersavedata2(file,wb_id);
-//            return ResponseEntity.ok(Map.of("message","저장완료"));
-//        }catch (Exception e){
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-//                    .body(Map.of("error", e.getMessage()));
-//        }
-//    }
 
     @Operation(summary = "답지 pdf 업로드 api", description = "파라미터 두개 필요")
     @ApiResponse(responseCode = "200", description = "성공적으로 저장됨",
@@ -416,8 +357,6 @@ public class ChatGPTController {
     @ApiResponse(responseCode="200",description = "성공",
             content = {@Content(mediaType = "application/pdf",
                     schema = @Schema(type="pdf파일",format = "binary"))})
-//    @ApiResponse(responseCode = "400",description = "입력오류",
-//            content = {@Content(schema = @Schema(implementation = ErrorResponse.class))})
     @ApiResponse(responseCode = "500", description = "서버 오류",
             content = @Content(schema = @Schema(type = "object", example = "{\"error\": \"서버 내부 오류 메시지\"}")))
     @GetMapping("/answer/download/{wb_id}") //클라이언트에게 저장한 답지 pdf파일을 전송하는 api
@@ -440,5 +379,4 @@ public class ChatGPTController {
                     .body(Map.of("error", e.getMessage()));
         }
     }
-
 }
