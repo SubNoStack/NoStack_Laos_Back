@@ -22,5 +22,4 @@ public interface ChatGPTService {
 
     QuestionAnswerResponse reCategoryWorkBook() throws IOException;
 
-    Map<String, Object> regenerateCategoryQuestions(String prompt, String language);
 }
