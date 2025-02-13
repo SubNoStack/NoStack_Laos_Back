@@ -231,32 +231,78 @@ public class ChatGPTServiceImpl implements ChatGPTService {
      * @param language 문제 생성에 사용할 언어
      * @return 생성된 이미지 문제 목록 (각 문제는 'question'과 'imageUrl'을 포함하는 맵 형태)
      */
+//    private List<Map<String, String>> generateImageQuestions(List<String> imageQuestionsTexts, String language) {
+//        ExecutorService executorService = Executors.newFixedThreadPool(5);
+//
+//        List<CompletableFuture<Map<String, String>>> futures = new ArrayList<>();
+//
+//        for (String questionText : imageQuestionsTexts) {
+//            CompletableFuture<Map<String, String>> future = CompletableFuture.supplyAsync(() -> {
+//                String imageUrl = generateImage(questionText); // 질문에 대한 이미지 생성
+//
+//                Map<String, String> questionWithImage = new HashMap<>();
+//                questionWithImage.put("question", questionText);
+//                questionWithImage.put("imageUrl", imageUrl);
+//
+//                return questionWithImage;
+//            }, executorService);
+//            futures.add(future);
+//        }
+//
+//        // 모든 작업 완료까지 대기 후 결과 반환
+//        List<Map<String, String>> imageQuestions = futures.stream()
+//                .map(CompletableFuture::join)
+//                .toList();
+//
+//        executorService.shutdown(); // 스레드 풀 종료
+//        return imageQuestions;
+//    }
+
     private List<Map<String, String>> generateImageQuestions(List<String> imageQuestionsTexts, String language) {
         ExecutorService executorService = Executors.newFixedThreadPool(5);
-
         List<CompletableFuture<Map<String, String>>> futures = new ArrayList<>();
 
         for (String questionText : imageQuestionsTexts) {
             CompletableFuture<Map<String, String>> future = CompletableFuture.supplyAsync(() -> {
-                String imageUrl = generateImage(questionText); // 질문에 대한 이미지 생성
+                // 이미지 생성에 적합한 설명 텍스트 생성
+                String imageDescription = generateImageDescription(questionText, language);
+                // 생성된 설명을 바탕으로 이미지 URL 생성
+                String imageUrl = generateImage(imageDescription);
 
                 Map<String, String> questionWithImage = new HashMap<>();
                 questionWithImage.put("question", questionText);
                 questionWithImage.put("imageUrl", imageUrl);
+                // imageDescription은 더 이상 응답에 포함하지 않습니다.
 
                 return questionWithImage;
             }, executorService);
             futures.add(future);
         }
 
-        // 모든 작업 완료까지 대기 후 결과 반환
         List<Map<String, String>> imageQuestions = futures.stream()
                 .map(CompletableFuture::join)
                 .toList();
 
-        executorService.shutdown(); // 스레드 풀 종료
+        executorService.shutdown();
         return imageQuestions;
     }
+
+
+    private String generateImageDescription(String questionText, String language) {
+        String prompt = "Given the following multiple-choice question, create a concise description for an image that visually represents the question and its correct answer. The description should be suitable for AI image generation, focusing on key visual elements without using text or numbers. Question: " + questionText;
+
+        ChatCompletionDto chatCompletionDto = ChatCompletionDto.builder()
+                .model("gpt-4o-mini")
+                .messages(List.of(ChatRequestMsgDto.builder()
+                        .role("user")
+                        .content(prompt)
+                        .build()))
+                .build();
+
+        Map<String, Object> response = executePrompt(chatCompletionDto);
+        return (String) response.get("content");
+    }
+
 
     /**
      * 텍스트 기반 문제를 생성하는 메서드
@@ -296,6 +342,49 @@ public class ChatGPTServiceImpl implements ChatGPTService {
      * @param description 이미지 문제로 변환할 질문 설명
      * @return 생성된 이미지의 URL
      */
+//    private String generateImage(String description) {
+//        if (testMode) {
+//            log.debug("[테스트 모드] 더미 이미지 URL 반환");
+//            return "https://www.dummyimage.com/1024x1024/000/fff.jpg&text=No+Stack";
+//        }
+//
+//        log.debug("[+] 이미지 생성 요청: {}", description);
+//
+//        // DALL-E 요청 텍스트 (이부분 수정해주면 됌)
+////        String prompt = description + " Create a detailed and accurate visual representation of the problem described above." +
+////                " Ensure the image visually represents the context of the question and the correct answer." +
+////                " Highlight the key elements related to the correct choice while ensuring the design remains minimalist, formal, and suitable for academic purposes." +
+////                " Do not include any text or language in the image, but visually emphasize the core idea of the correct answer.";
+//
+//        String prompt = "Create a minimalist, formal, and academic visual representation of the following problem: " + description +
+//                " The image should:" +
+//                " - Accurately depict the key elements and relationships in the problem" +
+//                " - Highlight the correct answer visually without using text" +
+//                " - Use simple shapes, lines, and minimal color palette" +
+//                " - Focus on the core concept without unnecessary details" +
+//                " - Be clear and easy to understand at a glance" +
+//                " - Avoid any text or numbers in the image itself" +
+//                " - Utilize visual hierarchy to emphasize the most important aspects" +
+//                " - Incorporate relevant symbols or iconography if applicable" +
+//                " - Maintain a clean, professional aesthetic suitable for educational purposes";
+//
+//
+//        // OpenAI API 요청 생성 (이부분 수정해주면 됌) <<프롬프트랑 같이 다른 설정들을 해줘야한다고 전달받음
+//        DalleRequestDto dalleRequest = DalleRequestDto.builder()
+//                .model("dall-e-3")
+//                .prompt(prompt)
+//                .style("natural")
+//                .build();
+//
+//        Map<String, Object> imageResponse = executePrompt(dalleRequest);
+//
+//        // 이미지 URL 추출
+//        String imageUrl = (String) imageResponse.get("content");
+//        log.debug("생성된 이미지 URL: {}", imageUrl);
+//
+//        return imageUrl;
+//    }
+
     private String generateImage(String description) {
         if (testMode) {
             log.debug("[테스트 모드] 더미 이미지 URL 반환");
@@ -304,26 +393,32 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
         log.debug("[+] 이미지 생성 요청: {}", description);
 
-        // DALL-E 요청 텍스트 (이부분 수정해주면 됌)
-        String prompt = description + " Create a detailed and accurate visual representation of the problem described above." +
-                " Ensure the image visually represents the context of the question and the correct answer." +
-                " Highlight the key elements related to the correct choice while ensuring the design remains minimalist, formal, and suitable for academic purposes." +
-                " Do not include any text or language in the image, but visually emphasize the core idea of the correct answer.";
+        String prompt = "Create a minimalist, formal, and academic visual representation of the following: " + description +
+                " The image should:" +
+                " - Use simple shapes, lines, and a minimal color palette" +
+                " - Focus on the core concept without unnecessary details" +
+                " - Be clear and easy to understand at a glance" +
+                " - Avoid any text or numbers in the image itself" +
+                " - Utilize visual hierarchy to emphasize the most important aspects" +
+                " - Incorporate relevant symbols or iconography if applicable" +
+                " - Maintain a clean, professional aesthetic suitable for educational purposes";
 
-        // OpenAI API 요청 생성 (이부분 수정해주면 됌) <<프롬프트랑 같이 다른 설정들을 해줘야한다고 전달받음
         DalleRequestDto dalleRequest = DalleRequestDto.builder()
                 .model("dall-e-3")
                 .prompt(prompt)
+                .style("natural")
+                .size("1024x1024")
+                .quality("standard")
+                .n(1)
                 .build();
 
         Map<String, Object> imageResponse = executePrompt(dalleRequest);
-
-        // 이미지 URL 추출
         String imageUrl = (String) imageResponse.get("content");
         log.debug("생성된 이미지 URL: {}", imageUrl);
 
         return imageUrl;
     }
+
 
     /**
      * 생성된 문제에 대한 정답을 생성하는 메서드
