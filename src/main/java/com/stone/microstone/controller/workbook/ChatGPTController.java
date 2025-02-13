@@ -40,7 +40,7 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
-@RequestMapping(value = "/api/workbook")  //세션을 사용하여 검증한뒤 문제집과 관련된 기능을 수행하는 api
+@RequestMapping(value = "/api/workbook")  // API to perform workbook-related functions after validation using a session
 public class ChatGPTController {
 
     private final ChatGPTService chatGPTService;
@@ -49,109 +49,77 @@ public class ChatGPTController {
     private final WorkBookRepository workBookRepository;
 
     public ChatGPTController(ChatGPTService chatGPTService, WorkBookService workBookService,
-                             PdfService pdfService,WorkBookRepository workBookRepository) {
+                             PdfService pdfService, WorkBookRepository workBookRepository) {
         this.chatGPTService = chatGPTService;
         this.workBookService = workBookService;
         this.pdfService = pdfService;
         this.workBookRepository = workBookRepository;
     }
 
-//    @PostMapping("/processText")
-//    @Operation(summary = "사용자가 보낸 문제 텍스트를 처리하는 api", description = "문제를 전송후 생성. 주의!!최상단 json태그에 message태그 존재.")
-//    @ApiResponse(responseCode = "200", description = "성공",
-//            content = {@Content(schema = @Schema(implementation = QuestionAnswerResponse.class))})
-//    @ApiResponse(responseCode = "400", description = "입력 오류",
-//            content = @Content(schema = @Schema(type = "object", example = "{\"error\": \"클라이언트 오류 메시지\"}")))
-//    @ApiResponse(responseCode = "500", description = "서버 오류",
-//            content = @Content(schema = @Schema(type = "object", example = "{\"error\": \"서버 내부 오류 메시지\"}")))
-//    public ResponseEntity<Map<String, Object>> processText(
-//            @Parameter(name="language",description = "어느나라 언어로 생성할건지 작성ex)english ,korea, Lao language",example="Lao language",required = true)
-//            @RequestParam(name = "language") String language,
-//            @Parameter(name = "category", description = "문제의 카테고리 ex)conversation, object, food, culture", example = "object", required = true)
-//            @RequestParam(name = "category") String category,
-//
-//            @RequestBody @Valid RequestBodys Text) {
-//
-//        try { //전달받은 문제 텍스트 처리하여 서비스 수행
-//            QuestionAnswerResponse response = chatGPTService.processText(Text.getProblemText(),language,category);
-//            return new ResponseEntity<>(Map.of("message", response), HttpStatus.OK);
-//        } catch (IllegalArgumentException e) {
-//            log.error("입력 오류", e.getMessage());
-//            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-//                    .body(Map.of("error", e.getMessage()));
-//        } catch (Exception e) {
-//            log.error("오류 발생", e.getMessage());
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-//                    .body(Map.of("error", "WorkBook 처리 중 오류가 발생했습니다: " + e.getMessage()));
-//        }
-//    }
-
     @PostMapping("/processText")
-    @Operation(summary = "사용자가 보낸 문제 텍스트를 처리하는 api", description = "문제를 전송후 생성. 주의!!최상단 json태그에 message태그 존재.")
-    @ApiResponse(responseCode = "200", description = "성공",
+    @Operation(summary = "API to process problem text sent by the user", description = "Generate after sending the problem. Note!! 'message' tag exists in the top-level JSON tag.")
+    @ApiResponse(responseCode = "200", description = "Success",
             content = {@Content(schema = @Schema(implementation = QuestionAnswerResponse.class))})
-    @ApiResponse(responseCode = "400", description = "입력 오류",
-            content = @Content(schema = @Schema(type = "object", example = "{\"error\": \"클라이언트 오류 메시지\"}")))
-    @ApiResponse(responseCode = "500", description = "서버 오류",
-            content = @Content(schema = @Schema(type = "object", example = "{\"error\": \"서버 내부 오류 메시지\"}")))
+    @ApiResponse(responseCode = "400", description = "Input error",
+            content = @Content(schema = @Schema(type = "object", example = "{\"error\": \"Client error message\"}")))
+    @ApiResponse(responseCode = "500", description = "Server error",
+            content = @Content(schema = @Schema(type = "object", example = "{\"error\": \"Internal server error message\"}")))
     public ResponseEntity<Map<String, Object>> processText(
-            @Parameter(name="language",description = "어느나라 언어로 생성할건지 작성ex)english ,korea, Lao language",example="Lao language",required = true)
+            @Parameter(name="language", description = "Specify the language to generate in, e.g., english, korea, Lao language", example="Lao language", required = true)
             @RequestParam(name = "language") String language,
-            @Parameter(name = "category", description = "문제의 카테고리 ex)conversation, object, food, culture", example = "object", required = false)
+            @Parameter(name = "category", description = "Problem category e.g., conversation, object, food, culture", example = "object", required = false)
             @RequestParam(name = "category", required = false, defaultValue = "null") String category,
             @RequestBody @Valid RequestBodys Text) {
 
-        try { //전달받은 문제 텍스트 처리하여 서비스 수행
+        try { // Process the received problem text and perform the service
             QuestionAnswerResponse response = chatGPTService.processText(Text.getProblemText(), language, category);
             return new ResponseEntity<>(Map.of("message", response), HttpStatus.OK);
         } catch (IllegalArgumentException e) {
-            log.error("입력 오류", e.getMessage());
+            log.error("Input error", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
-            log.error("오류 발생", e.getMessage());
+            log.error("Error occurred", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "WorkBook 처리 중 오류가 발생했습니다: " + e.getMessage()));
+                    .body(Map.of("error", "An error occurred while processing the WorkBook: " + e.getMessage()));
         }
-    }
+
+}
 
 
-
-    //    @ApiResponse(responseCode = "400",description = "잘못된 요청",
-//            content = {@Content(schema = @Schema(implementation = ErrorResponse.class))})
-    @Operation(summary = "일반 재생성 api", description = "파라미터 필요x주의!!최상단 json태그에 message태그 존재.")
-    @ApiResponse(responseCode = "200", description = "성공", content = {@Content(schema = @Schema(implementation = QuestionAnswerResponse.class))})
-    @ApiResponse(responseCode = "500", description = "서버오류", content = {@Content(schema = @Schema(implementation = ErrorResponse.class))})
+    @Operation(summary = "General regeneration API", description = "No parameters required. Note!! 'message' tag exists in the top-level JSON tag.")
+    @ApiResponse(responseCode = "200", description = "Success", content = {@Content(schema = @Schema(implementation = QuestionAnswerResponse.class))})
+    @ApiResponse(responseCode = "500", description = "Server error", content = {@Content(schema = @Schema(implementation = ErrorResponse.class))})
     @PostMapping("/retext")
     public ResponseEntity<Object> retext() {
         try {
-            // 서비스 수행
+            // Perform the service
             QuestionAnswerResponse response = chatGPTService.getRetextWorkBook();
             if (response == null) {
-                log.error("응답이 null입니다.");
+                log.error("The response is null.");
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                        .body(Map.of("error", "재생성된 문제집이 없습니다."));
+                        .body(Map.of("error", "There is no regenerated workbook."));
             }
-            // 결과 반환
+            // Return the result
             return new ResponseEntity<>(Map.of("message", response), HttpStatus.OK);
         } catch (Exception e) {
-            log.error("오류 발생: {}", e.getMessage(), e);
+            log.error("Error occurred: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "WorkBook 저장 중 오류가 발생했습니다." + e.getMessage()));
+                    .body(Map.of("error", "An error occurred while saving the WorkBook." + e.getMessage()));
         }
     }
 
 
-    @Operation(summary = "카테고리 재생성 api", description = "파라미터 필요x주의!!최상단 json태그에 message태그 존재.")
-    @ApiResponse(responseCode = "200", description = "성공", content = {@Content(schema = @Schema(implementation = QuestionAnswerResponse.class))})
-    @ApiResponse(responseCode = "500", description = "서버오류", content = {@Content(schema = @Schema(implementation = ErrorResponse.class))})
+    @Operation(summary = "Category regeneration API", description = "No parameters required. Note!! 'message' tag exists in the top-level JSON tag.")
+    @ApiResponse(responseCode = "200", description = "Success", content = {@Content(schema = @Schema(implementation = QuestionAnswerResponse.class))})
+    @ApiResponse(responseCode = "500", description = "Server error", content = {@Content(schema = @Schema(implementation = ErrorResponse.class))})
     @PostMapping("/reCategorytext")
     public ResponseEntity<Object> reCategoryText() {
         try {
             QuestionAnswerResponse response = chatGPTService.reCategoryWorkBook();
             if (response == null) {
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                        .body(Map.of("error", "재생성된 카테고리 문제집이 없습니다."));
+                        .body(Map.of("error", "There is no regenerated category workbook."));
             }
             return new ResponseEntity<>(Map.of("message", response), HttpStatus.OK);
         } catch (IllegalArgumentException e) {
@@ -159,41 +127,43 @@ public class ChatGPTController {
                     .body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "카테고리 WorkBook 재생성 중 오류가 발생했습니다: " + e.getMessage()));
+                    .body(Map.of("error", "An error occurred while regenerating the category WorkBook: " + e.getMessage()));
         }
     }
 
-    @Operation(summary = "카테고리별 문제를 생성 처리하는 api",description = "문제를 전송후 생성.주의!!최상단 json태그에 message태그 존재.")
-    @ApiResponse(responseCode="200",description = "성공",
+
+    @Operation(summary = "API to generate and process category-specific problems", description = "Generate after sending the problem. Note!! 'message' tag exists in the top-level JSON tag.")
+    @ApiResponse(responseCode = "200", description = "Success",
             content = {@Content(schema = @Schema(implementation = QuestionAnswerResponse.class))})
-    @ApiResponse(responseCode = "400", description = "입력 오류",
-            content = @Content(schema = @Schema(type = "object", example = "{\"error\": \"클라이언트 오류 메시지\"}")))
-    @ApiResponse(responseCode = "500", description = "서버 오류",
-            content = @Content(schema = @Schema(type = "object", example = "{\"error\": \"서버 내부 오류 메시지\"}")))
+    @ApiResponse(responseCode = "400", description = "Input error",
+            content = @Content(schema = @Schema(type = "object", example = "{\"error\": \"Client error message\"}")))
+    @ApiResponse(responseCode = "500", description = "Server error",
+            content = @Content(schema = @Schema(type = "object", example = "{\"error\": \"Internal server error message\"}")))
     @PostMapping("/processCategory")
     public ResponseEntity<Map<String, Object>> processCategorys(
             @Parameter(name="category",
-                    description = "어느 카테고리로 할지 결정 ex)conversation,object,food,culture",example="object",required = true)
+                    description = "Decide which category to use, e.g., conversation, object, food, culture", example="object", required = true)
             @RequestParam(name = "category") String category,
-            @Parameter(name="language",description = "어느나라 언어로 생성할건지 작성ex)en,ko,laos",example="ko",required = true)
+            @Parameter(name="language", description = "Specify the language to generate in, e.g., english, korea, Lao language", example="korea", required = true)
             @RequestParam(name = "language", required = false) String language) {
-        log.debug("받은 카테고리: " + category);
+        log.debug("Received category: " + category);
 
         try {
-            // 카테고리 문제 생성 호출
-            QuestionAnswerResponse response = chatGPTService.generateCategoryQuestions(category,language);
-            return new ResponseEntity<>(Map.of("message",response), HttpStatus.OK);
+            // Call category problem generation
+            QuestionAnswerResponse response = chatGPTService.generateCategoryQuestions(category, language);
+            return new ResponseEntity<>(Map.of("message", response), HttpStatus.OK);
 
         } catch (IllegalArgumentException e) {
-            log.error("입력 오류", e);
+            log.error("Input error", e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
-            log.error("오류 발생", e);
+            log.error("Error occurred", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "카테고리 문제 처리 중 오류가 발생했습니다: " + e.getMessage()));
+                    .body(Map.of("error", "An error occurred while processing category problems: " + e.getMessage()));
         }
     }
+
 
     @Operation(summary = "전체 문제 조회 api",description = "파라미터 필요x주의!!최상단 json태그에 data태그 존재.")
     @ApiResponse(responseCode="200",description = "성공",

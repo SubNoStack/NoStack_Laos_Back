@@ -37,6 +37,4 @@ public class ChatGPTConfig {
     public String getDalleApiUrl() {
         return dalleApiUrl;
     }
-
-
 }

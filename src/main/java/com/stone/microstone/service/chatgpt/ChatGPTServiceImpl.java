@@ -531,23 +531,12 @@ public class ChatGPTServiceImpl implements ChatGPTService {
     public QuestionAnswerResponse generateCategoryQuestions(String category, String language) throws IOException {
         log.debug("카테고리 문제 생성 시작: " + category);
 
-        String prompt; // 카테고리별로 다른 문제 생성 프롬프트 설정
-        switch (category.toLowerCase()) {
-            case "conversation":
-                prompt = "Create multiple-choice questions related to common Korean conversations in daily life. Focus on realistic scenarios such as greetings, ordering food, asking for directions, or making small talk. For example, questions could ask which phrase is appropriate in a given situation, or what the appropriate response would be.";
-                break;
-            case "object":
-                prompt = "Generate multiple-choice questions about Korean objects or artifacts that foreign learners might encounter in everyday life. The questions should ask for the Korean name of common objects or traditional items such as hanbok, Korean ceramics, and cultural symbols, as well as everyday items like furniture, clothes, or gadgets.";
-                break;
-            case "food":
-                prompt = "Create multiple-choice quiz questions about Korean food culture. Include common dishes, eating etiquette, and regional specialties. Focus on everyday food items, such as popular street food or dishes found in Korean homes, not necessarily traditional ones.";
-                break;
-            case "culture":
-                prompt = "Generate multiple-choice questions about Korean culture, including popular traditions, festivals, and modern practices. The questions should cover well-known cultural elements, such as holidays like Chuseok or Lunar New Year, as well as aspects of contemporary Korean pop culture.";
-                break;
-            default:
-                throw new IllegalArgumentException("Invalid category: " + category);
-        }
+        // 카테고리별 프롬프트 생성
+        String prompt = getCategoryPrompt(category);
+
+        // 추가 프롬프트 문장 추가
+        prompt += ". \nGenerate the questions in " + language + " and create the answer choices (①, ②, ③, and ④) in Korean.";
+
         // 1. 문제 15개 생성
         List<String> allQuestions = generateTextQuestions(prompt, language);
         if (allQuestions.size() < 15) {
@@ -582,6 +571,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         // 마지막 문제집의 category와 language 가져오기
         String category = lastWorkBook.getWb_category();
         String language = lastWorkBook.getWb_language();
+        String contextText = lastWorkBook.getWb_content(); //기존 문제집
         // category와 language가 유효한지 확인
         if (category == null || category.trim().isEmpty() || language == null || language.trim().isEmpty()) {
             throw new IllegalArgumentException("카테고리 또는 언어 정보가 유효하지 않습니다.");
@@ -589,14 +579,15 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         // 카테고리에 따른 문제 생성 프롬프트 가져오기
         String prompt = getCategoryPrompt(category);
 
+        prompt = prompt + ". \nGenerate the questions in " + language + " and create the answer choices (①, ②, ③, and ④) in Korean.";
+
         // 1. 문제 생성
-        Map<String, Object> questionResult = regenerateCategoryQuestions(prompt, language);
+        Map<String, Object> questionResult = regenerateQuestion(prompt, contextText, language);
         List<String> allQuestions = (List<String>) questionResult.get("questions");
 
         if (allQuestions.size() < 15) {
             throw new RuntimeException("15개의 문제가 생성되지 않았습니다.");
         }
-
         // 2. 문제 분류 (이미지 5개, 텍스트 10개)
         List<String> textQuestions = allQuestions.subList(5, 15);
         List<String> imageQuestionTexts = allQuestions.subList(0, 5);
@@ -649,62 +640,5 @@ public class ChatGPTServiceImpl implements ChatGPTService {
                 throw new IllegalArgumentException("Invalid category: " + category);
         }
         return prompt;
-    }
-
-    /**
-     * 기존 문제를 기반으로 새로운 문제를 생성하는 메서드
-     *
-     * @param prompt 문제 생성을 위한 프롬프트
-     * @param language 문제를 생성할 언어
-     * @return 생성된 문제 목록을 포함한 Map 객체
-     * @throws IllegalArgumentException 15개의 문제가 생성되지 않은 경우 예외 발생
-     */
-    @Override
-    public Map<String, Object> regenerateCategoryQuestions(String prompt, String language) {
-        log.debug("[+] 기존 문제들을 기반으로 새로운 문제를 생성합니다.");
-        // 15개의 문제를 한 번에 생성
-        List<String> allQuestions = regenerateCategoryTextQuestions(prompt, language);
-        if (allQuestions.size() < 15) {
-            throw new IllegalArgumentException("15개의 문제가 생성되지 않았습니다.");
-        }
-        Map<String, Object> result = new HashMap<>();
-        result.put("questions", allQuestions);
-
-        return result;
-    }
-
-    /**
-     * AI 모델을 활용하여 카테고리별 문제를 재생성하는 메서드
-     *
-     * @param prompt 문제 생성을 위한 프롬프트
-     * @param language 문제를 생성할 언어
-     * @return 생성된 문제 목록
-     */
-    private List<String> regenerateCategoryTextQuestions(String prompt, String language) {
-        String questionPrompt = "Using the summarized text, generate 15 multiple-choice questions numbered 1 through 15.\n\n" +
-                "Ensure that each question follows this format:\n" +
-                "(1) The question statement, followed by a newline.\n" +
-                "(2) Four answer choices labeled as ①, ②, ③, and ④, each on a new line.\n" +
-                "Do not include any introductory or explanatory text.\n\n" +
-                "Use a formal tone in line with Korean college entrance exam style.\n" +
-                "Create the problems using " + language + ".\n\n" +
-                "Ensure these questions do not overlap with the previous ones.\n" +
-                "Here is the summarized text:\n" + prompt;
-
-        ChatCompletionDto textCompletion = ChatCompletionDto.builder()
-                .model("gpt-4o-mini")
-                .messages(List.of(ChatRequestMsgDto.builder()
-                        .role("user")
-                        .content(questionPrompt)
-                        .build()))
-                .build();
-
-        log.debug("재생성 텍스트 문제 요청: {}", textCompletion.toString());
-        // AI 모델을 호출하여 문제 생성
-        Map<String, Object> textQuestionsResponse = executePrompt(textCompletion);
-        String questionsText = (String) textQuestionsResponse.get("content");
-        // 문제 번호를 기준으로 문제를 나누어 리스트로 변환
-        List<String> splitQuestions = Arrays.asList(questionsText.split("(?=\\b\\d{1,2}\\.)"));
-        return splitQuestions;
     }
 }
