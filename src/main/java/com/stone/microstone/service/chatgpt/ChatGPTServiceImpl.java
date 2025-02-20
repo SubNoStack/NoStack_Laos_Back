@@ -150,9 +150,9 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         // 2. 15개의 문제 생성
         Map<String, Object> questionResult = generateQuestion(summarizedText, language);
         List<String> allQuestions = (List<String>) questionResult.get("questions");
-        if (allQuestions.size() < 15) {
-            throw new IllegalArgumentException("15개의 문제가 생성되지 않았습니다.");
-        }
+//        if (allQuestions.size() < 15) {
+//            throw new IllegalArgumentException("15개의 문제가 생성되지 않았습니다.");
+//        }
 
         // 3. 이미지 문제를 병렬로 생성 (1~5번 문제만 이미지로 변환)
         List<String> textQuestions = allQuestions.subList(5, 15);
@@ -214,9 +214,9 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
         // 15개의 문제를 한 번에 생성
         List<String> allQuestions = generateTextQuestions(summarizedText, language);
-        if (allQuestions.size() < 15) {
-            throw new IllegalArgumentException("15개의 문제가 생성되지 않았습니다.");
-        }
+//        if (allQuestions.size() < 15) {
+//            throw new IllegalArgumentException("15개의 문제가 생성되지 않았습니다.");
+//        }
 
         // 결과 맵에 저장
         Map<String, Object> result = new HashMap<>();
@@ -319,6 +319,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
                                 "Ensure that each question follows this format:\n" +
                                 "(1) The question statement, followed by a newline.\n" +
                                 "(2) Four answer choices labeled as ①, ②, ③, and ④, each on a new line.\n" +
+                                "(3) Please indicate the problem number as 1., 2., etc. \n" +
                                 "Do not include any introductory or explanatory text.\n\n" +
                                 "Use a formal tone in line with Korean college entrance exam style.\n" +
                                 "Create the problems using " + language + ".\n\n" +
@@ -594,6 +595,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
                 "Ensure that each question follows this format:\n" +
                 "(1) The question statement, followed by a newline.\n" +
                 "(2) Four answer choices labeled as ①, ②, ③, and ④, each on a new line.\n" +
+                "(3) Please indicate the problem number as 1., 2., etc.\n" +
                 "Do not include any introductory or explanatory text.\n\n" +
                 "Maintain a formal tone similar to Korean college entrance exams.\n\n" +
                 "Ensure these questions do not overlap with the previous ones.\n" +
