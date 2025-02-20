@@ -150,9 +150,9 @@ public class ChatGPTServiceImpl implements ChatGPTService {
         // 2. 15개의 문제 생성
         Map<String, Object> questionResult = generateQuestion(summarizedText, language);
         List<String> allQuestions = (List<String>) questionResult.get("questions");
-        if (allQuestions.size() < 15) {
-            throw new IllegalArgumentException("15개의 문제가 생성되지 않았습니다.");
-        }
+//        if (allQuestions.size() < 15) {
+//            throw new IllegalArgumentException("15개의 문제가 생성되지 않았습니다.");
+//        }
 
         // 3. 이미지 문제를 병렬로 생성 (1~5번 문제만 이미지로 변환)
         List<String> textQuestions = allQuestions.subList(5, 15);
@@ -214,9 +214,9 @@ public class ChatGPTServiceImpl implements ChatGPTService {
 
         // 15개의 문제를 한 번에 생성
         List<String> allQuestions = generateTextQuestions(summarizedText, language);
-        if (allQuestions.size() < 15) {
-            throw new IllegalArgumentException("15개의 문제가 생성되지 않았습니다.");
-        }
+//        if (allQuestions.size() < 15) {
+//            throw new IllegalArgumentException("15개의 문제가 생성되지 않았습니다.");
+//        }
 
         // 결과 맵에 저장
         Map<String, Object> result = new HashMap<>();
