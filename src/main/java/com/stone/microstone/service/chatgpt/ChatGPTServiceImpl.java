@@ -319,6 +319,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
                                 "Ensure that each question follows this format:\n" +
                                 "(1) The question statement, followed by a newline.\n" +
                                 "(2) Four answer choices labeled as ①, ②, ③, and ④, each on a new line.\n" +
+                                "(3) Please indicate the problem number as 1., 2., etc. \n" +
                                 "Do not include any introductory or explanatory text.\n\n" +
                                 "Use a formal tone in line with Korean college entrance exam style.\n" +
                                 "Create the problems using " + language + ".\n\n" +
@@ -594,6 +595,7 @@ public class ChatGPTServiceImpl implements ChatGPTService {
                 "Ensure that each question follows this format:\n" +
                 "(1) The question statement, followed by a newline.\n" +
                 "(2) Four answer choices labeled as ①, ②, ③, and ④, each on a new line.\n" +
+                "(3) Please indicate the problem number as 1., 2., etc.\n" +
                 "Do not include any introductory or explanatory text.\n\n" +
                 "Maintain a formal tone similar to Korean college entrance exams.\n\n" +
                 "Ensure these questions do not overlap with the previous ones.\n" +
